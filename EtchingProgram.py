@@ -8,10 +8,9 @@ import datetime
 
 
 class EtchingRate():
-
     def etching_window(self):
         self.window = Tk()
-        WIDTH = 380
+        WIDTH = 400
         HEIGHT = 80
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
@@ -22,12 +21,13 @@ class EtchingRate():
         self.window.title("Etching Rate Import Program")
         self.window.geometry(f'{WIDTH}x{HEIGHT}+{x}+{y}')
         self.window.attributes('-disabled', True)
+        self.window.iconbitmap('fujikura_logo.ico')
         self.window.resizable(0, 0)
 
         # Widget
         frame = Frame(self.window)
         topics_label = Label(frame, text='Etching Rate Program', font=('Arial', 18, 'bold'))
-        self.status_label = Label(frame, fg='white', bg='red', font=('Arial', 16, 'bold'))
+        self.status_label = Label(frame, fg='white', bg='green', font=('Arial', 16, 'bold'))
 
         # Widget Position
         frame.pack()
@@ -42,11 +42,11 @@ class EtchingRate():
 
     def etching_overview(self):
         time_now = datetime.datetime.now()
-        self.status_label['text'] = "Etching Import on " + time_now.strftime('%x') + time_now.strftime('%X')
+        self.status_label['text'] = "Etching Import on " + time_now.strftime('%x') + " " + time_now.strftime('%X')
 
         # Run Program
 
-        self.window.after(5000, self.etching_overview)
+        self.window.after(1000, self.etching_overview)
         # Run after 6hrs
         # self.window.after(14400, self.etching_overview)
 
