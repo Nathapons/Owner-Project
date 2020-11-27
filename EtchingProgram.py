@@ -71,6 +71,7 @@ class EtchingRate():
         
         # Run function each sheet
         print("Run function each sheet")
+        print("Test it")
 
         etching_record_wb.release_resources()
 
