@@ -11,7 +11,7 @@ class EtchingRate():
     def etching_window(self):
         self.window = Tk()
         WIDTH = 400
-        HEIGHT = 80
+        HEIGHT = 100
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = int((screen_width/2) - (WIDTH/2))
@@ -20,7 +20,7 @@ class EtchingRate():
         # UI Properties
         self.window.title("Etching Rate Import Program")
         self.window.geometry(f'{WIDTH}x{HEIGHT}+{x}+{y}')
-        self.window.attributes('-disabled', True)
+        # self.window.attributes('-disabled', True)
         self.window.iconbitmap('fujikura_logo.ico')
         self.window.resizable(0, 0)
 
@@ -45,6 +45,7 @@ class EtchingRate():
         self.status_label['text'] = "Etching Import on " + time_now.strftime('%x') + " " + time_now.strftime('%X')
 
         # Run Program
+        self.open_etching_record_excel()
 
         self.window.after(1000, self.etching_overview)
         # Run after 6hrs
