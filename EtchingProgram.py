@@ -50,6 +50,30 @@ class EtchingRate():
         # Run after 6hrs
         # self.window.after(14400, self.etching_overview)
 
+    
+    def open_etching_record_excel(self):
+        etching_record_path = "\\\\10.17.164.209\\iot"
+        month_list = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+        for factory_name in os.listdir(etching_record_path):
+            factory_path = os.path.join(etching_record_path, factory_name)
+            for year_folder in os.listdir(factory_path):
+                year_path = os.path.join(factory_path, year_folder)
+                for record_file in os.listdir(year_path):
+                    month_year_record = record_file.split(" ")[1]
+                    month_record = month_year_record[0:3]
+                    if month_record in month_list and not record_file.startswith("~$"):
+                        etching_record_location = os.path.join(year_path, record_file)
+                        self.open_close_etching_record_excel(etching_record_location)
+
+    def open_close_etching_record_excel(self, etching_record_location):
+        etching_record_wb = xlrd.open_workbook(filename=etching_record_location)
+        
+        # Run function each sheet
+        print("Run function each sheet")
+
+        etching_record_wb.release_resources()
+
 
 app = EtchingRate()
 app.etching_window()
