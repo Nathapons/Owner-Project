@@ -45,35 +45,47 @@ class EtchingRate():
         self.status_label['text'] = "Etching Import on " + time_now.strftime('%x') + " " + time_now.strftime('%X')
 
         # Run Program
+        self.search_etching_record_excel()
 
         self.window.after(1000, self.etching_overview)
         # Run after 6hrs
         # self.window.after(14400, self.etching_overview)
 
     
-    def open_etching_record_excel(self):
+    def search_etching_record_excel(self):
         etching_record_path = "\\\\10.17.164.209\\iot"
         month_list = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
         for factory_name in os.listdir(etching_record_path):
             factory_path = os.path.join(etching_record_path, factory_name)
-            for year_folder in os.listdir(factory_path):
-                year_path = os.path.join(factory_path, year_folder)
+
+            for year in os.listdir(factory_path):
+                year_path = os.path.join(factory_path, year)
+
                 for record_file in os.listdir(year_path):
                     month_year_record = record_file.split(" ")[1]
-                    month_record = month_year_record[0:3]
-                    if month_record in month_list and not record_file.startswith("~$"):
+                    month_name = month_year_record[0:3]
+
+                    if month_name in month_list and not record_file.startswith("~$"):
+                        month_number = month_list.index(month_name) + 1
                         etching_record_location = os.path.join(year_path, record_file)
-                        self.open_close_etching_record_excel(etching_record_location)
+                        self.open_close_etching_record_excel(etching_record_location, year, month_name, month_number)
 
-    def open_close_etching_record_excel(self, etching_record_location):
+    def open_close_etching_record_excel(self, etching_record_location, year, month_name, month_number):
         etching_record_wb = xlrd.open_workbook(filename=etching_record_location)
-        
-        # Run function each sheet
-        print("Run function each sheet")
-        print("Test it")
+        machine_no_sheet_list = etching_record_wb.sheet_names()
 
+        for machine_no in machine_no_sheet_list:
+            if len(machine_no) == 7:
+                self.check_etching_format_exits(year, month_name, month_number, machine_no)
+        
         etching_record_wb.release_resources()
+
+    
+    def check_etching_format_exits(self, year, month_name, month_number, machine_no):
+        spc_path = "\\\\ta1d171009\\Users\\wissanu.t\\Desktop\\SPC C2R"
+        etching_file_location = f'{spc_path}\ค่า Etching rate  -{year}\{month_number}.{month_name}\{machine_no}'
+        print(etching_file_location)
 
 
 app = EtchingRate()
