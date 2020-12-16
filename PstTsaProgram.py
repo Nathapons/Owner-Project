@@ -131,14 +131,35 @@ class PsaTsaProgram:
 
         if year_input != "" and month_input != "": 
             month_input_list = month_input.split("'")
-            month_name = month_input_list[1]
-
+            month_name = month_input_list[1][0:3]
             new_master_file_location = os.path.join(self.master_data_location, year_input)
+            product_name_list = []
 
             for excel_file_name in os.listdir(new_master_file_location):
-                if month_name in excel_file_name:
+                if month_name in excel_file_name and not excel_file_name.startswith("~$") and excel_file_name.endswith(".xlsx"):
                     master_file_location = os.path.join(new_master_file_location, excel_file_name)
-                    print(master_file_location)
+                    print(f'open {excel_file_name}')
+                    # Open master file
+                    master_book = xlrd.open_workbook(filename=master_file_location)
+                    master_sheet = master_book.sheet_by_index(0)
+                    start_row = 8
+                    product_name_cell = master_sheet.cell(rowx=start_row, colx=3).value
+
+                    while product_name_cell != "":
+                        product_name = str(product_name_cell)[0:11]
+                        product_version = str(product_name_cell)[11:].replace("O", "0")
+                        product_full_name = product_name + product_version
+
+                        # Add data to list when product startwith RG and don't have add to list
+                        if product_full_name.upper() not in product_name_list and product_full_name.upper().startswith('RG'):
+                            product_name_list.append(product_full_name.upper())
+
+                        start_row += 5
+                        product_name_cell = master_sheet.cell(rowx=start_row, colx=3).value
+
+                    master_book.release_resources()
+            
+            self.product_cb['values'] = product_name_list
 
         elif year_input != "" and month_input == "":
             msb.showwarning('แจ้งเตือนไปยังผู้ใช้', 'กรุณากรอกข้อมูลที่ช่อง Month Report ก่อน')
