@@ -5,6 +5,7 @@ import xlrd
 import openpyxl as xl
 import csv
 import os
+import webbrowser
 
 class PsaTsaProgram:
     def __init__(self):
@@ -278,8 +279,14 @@ class PsaTsaProgram:
         spc_book.save(new_save_file_location)
         spc_book.close()
 
+        # Run function for open SPC file
+        self.ask_open_file_name(new_save_file_location)
+
     def ask_open_file_name(self, new_save_file_location):
-        pass
+        need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์' + "\n" + os.path.basename(new_save_file_location))
+
+        if need_open_spc_file:
+            webbrowser.open(url=new_save_file_location)
 
 
 app = PsaTsaProgram()
