@@ -11,8 +11,8 @@ class PsaTsaProgram:
         self.raw_data_location = '\\\\Ta1d181222\\01.result test peel strength\\DATA IPQC'
         self.master_list_location = "\\\\Ta1d180613\\2.MASTER LIST RUNNING NUMBER\\2. Master list IPQC"
         self.result_peel_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\IPQC (SMT)\\2. Result peel strength (ผลการตรวจสอบจาก ANC)"
-        self.spc_master_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\IPQC (SMT)\\99.SPC Master(ห้ามลบ)\\QF-A1-QUA-2036-6.xlsx"
-        
+        self.spc_master_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\IPQC (SMT)\\99.SPC Master(ห้ามลบ)\\QF-A1-QUA-2209-1.xlsx"
+
         # Widget Properties
         self.topic_font = ('Arial', 24, 'bold')
         self.detail_font = ('Arial', 16)
@@ -206,8 +206,10 @@ class PsaTsaProgram:
         if year_input == "" and month_input == "" and product_input == "" and machine_input == "":
             msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='คุณกรอกข้อมูลข้างบนไม่ครบถ้วน')
         else:
-            spc_file_location = self.search_spc_file_location()
-            self.check_spc_file_exist(spc_file_location)
+            spc_file_location, result_peel_location2 = self.search_spc_file_location()
+            spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
+
+            self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
 
     def search_spc_file_location(self):
         spc_file_location = ""
@@ -230,21 +232,53 @@ class PsaTsaProgram:
             elif not spc_file.startswith('~$') and spc_file.startswith('LINER') and peel_strength_input == 'liner' and product_input in spc_file and machine_input in spc_file:
                 spc_file_location = os.path.join(result_peel_location2, spc_file)
 
-        return spc_file_location
+        return spc_file_location, result_peel_location2
 
-    def check_spc_file_exist(self, spc_file_location):
+    def open_spc_file(self, spc_file_location):
         if spc_file_location == "":
-            msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='Create File')
+            filename_open=self.spc_master_location
         else:
-            msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message=f'Adjust from {spc_file_location}')
+            filename_open = spc_file_location
 
-    def get_machine_no_list_from_master_file(self):
+        spc_book = xl.open(filename=filename_open)
+        spc_sheet_list = spc_book.sheetnames
+        spc_sheet1 = spc_book[spc_sheet_list[0]]
+        spc_sheet2 = spc_book[spc_sheet_list[1]]
+
+        return spc_book, spc_sheet1, spc_sheet2, filename_open
+            
+    def get_information_list_from_master_file(self):
         pass
 
     def get_result_file_location(self):
         pass
     
     def get_testing_no_in_master(self):
+        pass
+
+    def close_and_save_spc_file(self, spc_book, spc_file_location, result_peel_location2, filename_open):
+        year_input = self.year_cb.get()
+        month_input = self.month_cb.get()
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        peel_strength_input = self.peel_strength_name.get()
+        new_date_format = month_input.split("'")[1] + "'" + year_input[2:4]
+
+        # Set Default location and name to save file
+        if spc_file_location == "" and peel_strength_input == 'flex':
+            new_save_file_name = 'FLEX PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
+            new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
+        elif spc_file_location == "" and peel_strength_input == 'liner':
+            new_save_file_name = 'LINER PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
+            new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
+        else:
+            new_save_file_name = spc_file_location
+
+        # Save file and Close Workbook
+        spc_book.save(new_save_file_location)
+        spc_book.close()
+
+    def ask_open_file_name(self, new_save_file_location):
         pass
 
 
