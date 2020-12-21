@@ -6,6 +6,7 @@ import openpyxl as xl
 import csv
 import os
 import webbrowser
+import datetime
 
 class PsaTsaProgram:
     def __init__(self):
@@ -207,10 +208,10 @@ class PsaTsaProgram:
         if year_input == "" and month_input == "" and product_input == "" and machine_input == "":
             msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='คุณกรอกข้อมูลข้างบนไม่ครบถ้วน')
         else:
-            spc_file_location, result_peel_location2 = self.search_spc_file_location()
-            spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
-
-            self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
+            # spc_file_location, result_peel_location2 = self.search_spc_file_location()
+            # spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
+            master_list = self.get_master_list()
+            # self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
 
     def search_spc_file_location(self):
         spc_file_location = ""
@@ -248,10 +249,58 @@ class PsaTsaProgram:
 
         return spc_book, spc_sheet1, spc_sheet2, filename_open
             
-    def get_information_list_from_master_file(self):
-        pass
+    def get_master_list(self):
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        month_input = self.month_cb.get()
+        year_input = self.year_cb.get()
+        peel_strength_input = self.peel_strength_name.get()
+        master_information_list = []
 
-    def get_result_file_location(self):
+        month_input_list = month_input.split("'")
+        month_name = month_input_list[1][0:3]
+        new_master_file_location = os.path.join(self.master_list_location, year_input)
+
+        for excel_file_name in os.listdir(new_master_file_location):
+            if month_name in excel_file_name and not excel_file_name.startswith("~$") and excel_file_name.endswith(".xlsx"):
+                master_file_location = os.path.join(new_master_file_location, excel_file_name)
+                master_book = xlrd.open_workbook(filename=master_file_location)
+                master_sheet = master_book.sheet_by_index(0)
+
+                start_row = 8
+                end_row = master_sheet.nrows
+                product_name = master_sheet.cell(rowx=start_row, colx=3).value
+
+                while str(product_name) != "":
+                    testing_no = master_sheet.cell(rowx=start_row, colx=1).value
+                    request_date_cell = master_sheet.cell(rowx=start_row, colx=2).value
+                    request_date = datetime.datetime(*xlrd.xldate_as_tuple(request_date_cell, master_book.datemode)).strftime('%x')
+                    lot_no = int(master_sheet.cell(rowx=start_row, colx=4).value)
+                    auto_press_machine = master_sheet.cell(rowx=start_row, colx=5).value
+
+                    if machine_input == auto_press_machine and product_input in product_name:
+                        serial_barcode_list = []
+                        if peel_strength_input == 'flex':
+                            peel_column = 8
+                        else:
+                            peel_column = 10
+
+                        for peel_row in range(start_row, start_row+5):
+                            serial_barcode = master_sheet.cell(rowx=peel_row, colx=peel_column).value
+                            serial_barcode_list.append(serial_barcode)
+
+                        master_information_list.append([testing_no, request_date, product_name, lot_no, auto_press_machine, serial_barcode_list])
+
+                    # Loop command
+                    start_row += 5
+                    product_name = master_sheet.cell(rowx=start_row, colx=3).value
+
+                master_book.release_resources()
+                break
+
+        return master_information_list
+
+    def open_file_in_iqic_no_folder(self, master_information_list):
         pass
     
     def get_testing_no_in_master(self):
@@ -283,7 +332,7 @@ class PsaTsaProgram:
         self.ask_open_file_name(new_save_file_location)
 
     def ask_open_file_name(self, new_save_file_location):
-        need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์' + "\n" + os.path.basename(new_save_file_location))
+        need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์ \n' + os.path.basename(new_save_file_location))
 
         if need_open_spc_file:
             webbrowser.open(url=new_save_file_location)
