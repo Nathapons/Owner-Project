@@ -209,11 +209,15 @@ class PsaTsaProgram:
         else:
             # Function Overview
             master_list = self.search_and_open_master_file()
-            spc_file_location, result_peel_location2 = self.search_spc_file_location()
-            spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
-            self.clear_psa_tsa_treeview()
-            self.check_iqic_has_update(spc_book, spc_sheet1, spc_sheet2, master_list)
-            self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
+            
+            if len(master_list) != 0:
+                spc_file_location, result_peel_location2 = self.search_spc_file_location()
+                spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
+                self.clear_psa_tsa_treeview()
+                self.check_iqic_has_update(spc_book, spc_sheet1, spc_sheet2, master_list)
+                self.close_and_save_spc_file(spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open)
+            else:
+                msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='ยังไม่มีข้อมูลสำหรับการอัพเดท')
             
     def search_and_open_master_file(self):
         product_input = self.product_cb.get()
@@ -381,7 +385,7 @@ class PsaTsaProgram:
         else:
             filename_open = spc_file_location
 
-        spc_book = xl.open(filename=filename_open, data_only=True)
+        spc_book = xl.open(filename=filename_open)
         spc_sheet_list = spc_book.sheetnames
         spc_sheet1 = spc_book[spc_sheet_list[0]]
         spc_sheet2 = spc_book[spc_sheet_list[1]]
@@ -399,76 +403,121 @@ class PsaTsaProgram:
             iqic_no = row[0]
             lot_no = row[3]
 
-            has_upate_at_spc_sheet1, column_update_in_spc_sheet1 = self.iqic_no_has_update_in_spc_sheet1(spc_sheet1 , master_list, lot_no)
-            # has_upate_at_spc_sheet2, column_update_in_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, iqic_no, lot_no)
-
-            if has_upate_at_spc_sheet1:
+            has_upate_at_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, lot_no)
+            
+            if has_upate_at_spc_sheet2:
                 data = [iqic_no, lot_no, "อัพเดทไปแล้ว"]
             else:
                 data = [iqic_no, lot_no, "โปรแกรมอัพเดท"]
+                self.update_result_to_spc_sheet1(spc_sheet1, row)
+                self.update_result_to_spc_sheet2(spc_sheet2, row)
             
             self.psa_tas_treeview.insert('', 'end', value=data)
 
-    def iqic_no_has_update_in_spc_sheet1(self, spc_sheet1 , master_list, lot_no):
+    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, lot_no):
         has_upate_at_spc_sheet1 = False
         spc_column = 3
-        column_update_in_spc_sheet1 = spc_column
-        lot_no_in_spc_sheet1 = spc_sheet1.cell(row=54, column=spc_column).value
+        lot_no_in_spc_sheet1 = spc_sheet2.cell(row=4, column=spc_column).value
         
-        while str(lot_no_in_spc_sheet1) != "":
-            if lot_no == lot_no_in_spc_sheet1:
+        while str(lot_no_in_spc_sheet1) != "None":
+            if str(lot_no) == str(lot_no_in_spc_sheet1):
                 has_upate_at_spc_sheet1 = True
-                return has_upate_at_spc_sheet1, column_update_in_spc_sheet1
+                return has_upate_at_spc_sheet1
 
             # Loop command
             spc_column += 1
-            lot_no_in_spc_sheet1 = spc_sheet1.cell(row=54, column=spc_column).value
+            lot_no_in_spc_sheet1 = spc_sheet2.cell(row=54, column=spc_column).value
             column_update_in_spc_sheet1 = spc_column
 
-        return has_upate_at_spc_sheet1, column_update_in_spc_sheet1
+        return has_upate_at_spc_sheet1
 
-    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, iqic_no, lot_no):
-        has_upate_at_spc_sheet2 = False
+    def update_result_to_spc_sheet1(self, spc_sheet1, master_row):
+        # Search Last Column Update
         spc_column = 3
-        column_update_in_spc_sheet2 = spc_column
-        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
-        
-        while lot_no_in_spc_sheet2 != "":
-            if lot_no == lot_no_in_spc_sheet2:
-                has_upate_at_spc_sheet1 = True
-                return has_upate_at_spc_sheet2, column_update_in_spc_sheet2
+        peel_result = spc_sheet1.cell(row=55, column=spc_column).value
 
+        while str(peel_result) != "None":
             # Loop command
             spc_column += 1
-            lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
-            column_update_in_spc_sheet2 = spc_column
+            peel_result = spc_sheet1.cell(row=55, column=spc_column).value
+            
+        # Update data 
+        peel_result_list = master_row[6]
+        spc_row = 55
 
-        return has_upate_at_spc_sheet2, column_update_in_spc_sheet2
+        for peel_result in peel_result_list:
+            spc_sheet1.cell(row=spc_row, column=spc_column).value = float(peel_result)
+            spc_row += 1
 
-    def close_and_save_spc_file(self, spc_book, spc_file_location, result_peel_location2, filename_open):
+    def update_result_to_spc_sheet2(self, spc_sheet2, master_row):
+        # Search Last Column Update
+        spc_column = 2
+        lot_no = spc_sheet2.cell(row=4, column=spc_column).value
+
+        while str(lot_no) != "None":
+            # Loop command
+            spc_column += 1
+            lot_no = spc_sheet2.cell(row=4, column=spc_column).value
+        
+        # Update data request_date, lot_no and serial barcode
+        request_date = master_row[1]
+        lot_no = master_row[3]
+        serial_barcode_list = master_row[5]
+        spc_row = 5
+
+        spc_sheet2.cell(row=3, column=spc_column).value = request_date
+        spc_sheet2.cell(row=4, column=spc_column).value = lot_no
+        for serial_barcode in serial_barcode_list:
+            spc_sheet2.cell(row=spc_row, column=spc_column).value = serial_barcode
+            spc_sheet2.cell(row=13, column=spc_column).value = 'kritsada'
+            spc_row += 1
+
+    def close_and_save_spc_file(self, spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open):
         year_input = self.year_cb.get()
         month_input = self.month_cb.get()
         product_input = self.product_cb.get()
         machine_input = self.machine_cb.get()
         peel_strength_input = self.peel_strength_name.get()
         new_date_format = month_input.split("'")[1] + "'" + year_input[2:4]
-
+        
         # Set Default location and name to save file
         if spc_file_location == "" and peel_strength_input == 'flex':
             new_save_file_name = 'FLEX PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
+            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input)
         elif spc_file_location == "" and peel_strength_input == 'liner':
             new_save_file_name = 'LINER PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
+            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input)
         else:
-            new_save_file_name = spc_file_location
+            new_save_file_location = spc_file_location
 
         # Save file and Close Workbook
-        # spc_book.save(new_save_file_location)
+        spc_book.save(new_save_file_location)
         spc_book.close()
 
         # Run function for open SPC file
-        # self.ask_open_file_name(new_save_file_location)
+        self.ask_open_file_name(new_save_file_location)
+
+    def update_spc_information_detail(self, spc_sheet1, new_date_format, machine_input, product_input):
+        spc_sheet1.cell(row=2, column=3).value = 'IPQC PSA, TSA'
+        spc_sheet1.cell(row=3, column=3).value = 'FLEX PEELSTRENGTH'
+        spc_sheet1.cell(row=4, column=3).value = machine_input
+        spc_sheet1.cell(row=5, column=3).value = '-'
+
+        spc_sheet1.cell(row=2, column=7).value = product_input
+        spc_sheet1.cell(row=3, column=7).value = new_date_format
+        spc_sheet1.cell(row=4, column=7).value = '-'
+        spc_sheet1.cell(row=5, column=7).value = "5 PCS / SHIFT"
+
+    def check_last_spc_format_of_product_input_exist(self):
+        pass
+
+    def search_last_spc_format_of_product_input(self):
+        pass
+
+    def import_spec_control_limit(self):
+        pass
 
     def ask_open_file_name(self, new_save_file_location):
         need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์ \n' + os.path.basename(new_save_file_location))
