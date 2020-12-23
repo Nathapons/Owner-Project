@@ -52,17 +52,16 @@ class PsaTsaProgram:
         flex_check_box = Radiobutton(check_box_frame, text='Flex Report', font=self.detail_font, variable=self.peel_strength_name, value='flex')
         liner_check_box = Radiobutton(check_box_frame, text='Liner Report', font=self.detail_font, variable=self.peel_strength_name, value='liner')
         run_program_button = Button(big_frame, text='Run Program', font=('Arial', 18, 'bold'), command=self.spc_program_overview)
-        treeview_label = Label(big_frame, text='Click Here to Open Excel:', font=self.detail_font, fg='#00802b')
 
         # Treeview Widget
-        headers = ['File Update', 'Report status']
-        self.psa_tas_treeview = ttk.Treeview(big_frame, column=headers, show='headings',height=7)
+        headers = ['Testing No.', 'Lot No.', 'Report status']
+        self.psa_tas_treeview = ttk.Treeview(big_frame, column=headers, show='headings', height=9)
         style = ttk.Style()
-        style.configure("Treeview.Heading", font=('Arial', 14, 'bold'), foreground="#bf00ff")
+        style.configure("Treeview.Heading", font=('Arial', 14, 'bold'), foreground="green")
         style.configure("Treeview", font=('Arial', 10))
         for header in headers:
             self.psa_tas_treeview.heading(header, text=header)
-            self.psa_tas_treeview.column(header, anchor='center', width=240, minwidth=0)
+            self.psa_tas_treeview.column(header, anchor='center', width=170, minwidth=0)
 
         # Widget Event
         self.year_cb.bind('<Button-1>', self.year_click)
@@ -88,8 +87,7 @@ class PsaTsaProgram:
         flex_check_box.grid(row=0, column=0, padx=5)
         liner_check_box.grid(row=0, column=1, padx=5)
         run_program_button.grid(row=2, column=0, pady=2, ipadx=20)
-        treeview_label.grid(row=3, column=0, pady=5)
-        self.psa_tas_treeview.grid(row=4, column=0, pady=2)
+        self.psa_tas_treeview.grid(row=4, column=0, pady=5)
 
         # GUI Activate
         self.spc_window.mainloop()
@@ -104,6 +102,7 @@ class PsaTsaProgram:
         self.year_cb['values'] = folder_name_list
         self.month_cb.set("")
         self.product_cb.set("")
+        self.machine_cb.set("")
     
     def month_click(self, event):
         year_input = self.year_cb.get()
@@ -182,7 +181,7 @@ class PsaTsaProgram:
                     while product_name_cell != "":
                         product_name = str(product_name_cell).upper()
                         
-                        if product_name.startswith(product_input) and machine_number_cell not in machine_number_list:
+                        if product_name.startswith(product_input) and machine_number_cell.strip() not in machine_number_list:
                             machine_number_list.append(str(machine_number_cell).strip())
 
                         # Loop command
@@ -208,10 +207,150 @@ class PsaTsaProgram:
         if year_input == "" and month_input == "" and product_input == "" and machine_input == "":
             msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='คุณกรอกข้อมูลข้างบนไม่ครบถ้วน')
         else:
-            # spc_file_location, result_peel_location2 = self.search_spc_file_location()
-            # spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
-            master_list = self.get_master_list()
-            # self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
+            # Function Overview
+            master_list = self.search_and_open_master_file()
+            spc_file_location, result_peel_location2 = self.search_spc_file_location()
+            spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
+            self.clear_psa_tsa_treeview()
+            self.check_iqic_has_update(spc_book, spc_sheet1, spc_sheet2, master_list)
+            self.close_and_save_spc_file(spc_book, spc_file_location, result_peel_location2, filename_open)
+            
+    def search_and_open_master_file(self):
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        month_input = self.month_cb.get()
+        year_input = self.year_cb.get()
+        peel_strength_input = self.peel_strength_name.get()
+
+        month_input_list = month_input.split("'")
+        month_name = month_input_list[1][0:3]
+        new_master_file_location = os.path.join(self.master_list_location, year_input)
+
+        for excel_file_name in os.listdir(new_master_file_location):
+            if month_name in excel_file_name and not excel_file_name.startswith("~$") and excel_file_name.endswith(".xlsx"):
+                # Open Excel file
+                master_file_location = os.path.join(new_master_file_location, excel_file_name)
+                master_book = xlrd.open_workbook(filename=master_file_location)
+                master_sheet = master_book.sheet_by_index(0)
+
+                # Run function
+                master_list = self.get_information_in_master(master_book, master_sheet)
+                
+                master_book.release_resources()
+                break
+
+        return master_list
+
+    def get_information_in_master(self, master_book, master_sheet):
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        peel_strength_input = self.peel_strength_name.get()
+        master_list = []
+
+        start_row = 8
+        end_row = master_sheet.nrows
+        product_name = master_sheet.cell(rowx=start_row, colx=3).value
+
+        while str(product_name) != "":
+            testing_no = str(master_sheet.cell(rowx=start_row, colx=1).value).strip()
+            request_date_cell = master_sheet.cell(rowx=start_row, colx=2).value
+            request_date = datetime.datetime(*xlrd.xldate_as_tuple(request_date_cell, master_book.datemode)).strftime('%x')
+            lot_no = int(master_sheet.cell(rowx=start_row, colx=4).value)
+            auto_press_machine = master_sheet.cell(rowx=start_row, colx=5).value
+
+            if machine_input in auto_press_machine and product_input in product_name:
+                # Get Serial Bar Code list
+                serial_barcode_list = []
+                if peel_strength_input == 'flex':
+                    peel_column = 8
+                else:
+                    peel_column = 10
+                for peel_row in range(start_row, start_row+5):
+                    serial_barcode = master_sheet.cell(rowx=peel_row, colx=peel_column).value
+                    serial_barcode_list.append(serial_barcode)
+
+                # Run function
+                peel_result_list = self.search_raw_file_location(testing_no, lot_no)
+                if len(peel_result_list) == 5:
+                    data_list = [testing_no, request_date, product_name, lot_no, auto_press_machine, serial_barcode_list, peel_result_list]
+                    master_list.append(data_list)
+
+            # Loop command
+            start_row += 5
+            product_name = master_sheet.cell(rowx=start_row, colx=3).value
+        
+        return master_list
+
+    def search_raw_file_location(self, testing_no, lot_no):
+        year_input = self.year_cb.get()
+        month_input = self.month_cb.get()
+        peel_strength_input = self.peel_strength_name.get()
+        product_input = self.product_cb.get()
+        peel_result_list = []
+        
+        iqic_folder_location = self.raw_data_location + "\\" + year_input + "\\" + month_input + "\\" + testing_no
+        if os.path.isdir(iqic_folder_location):
+            for file in os.listdir(iqic_folder_location):
+                # Check case file name
+                if "SP" in file.upper():
+                    continue
+                elif peel_strength_input == "flex" and file.upper().endswith("CSV") and "F" in file:
+                    csv_file_location = iqic_folder_location + "\\" + file
+                    peel_result_list = self.get_list_when_open_csv(csv_file_location)
+                    break
+                elif peel_strength_input == "flex" and file.upper().endswith("XLS") and "F" in file:
+                    excel_file_location = iqic_folder_location + "\\" + file
+                    peel_result_list = self.get_list_when_open_excel(excel_file_location)
+                    break
+                elif peel_strength_input == "liner" and file.upper().endswith("CSV") and "L" in file:
+                    csv_file_location = iqic_folder_location + "\\" + file
+                    peel_result_list = self.get_list_when_open_csv(csv_file_location)
+                    break
+                elif peel_strength_input == "liner" and file.upper().endswith("XLS") and "L" in file:
+                    excel_file_location = iqic_folder_location + "\\" + file
+                    peel_result_list = self.get_list_when_open_excel(excel_file_location)
+                    break
+
+        return peel_result_list
+
+    def get_list_when_open_excel(self, excel_file_location):
+        peel_book = xlrd.open_workbook(filename=excel_file_location)
+        peel_sheet = peel_book.sheet_by_index(0)
+        start_row = 0
+        end_row = peel_sheet.nrows - 1
+        peel_result_list = []
+
+        while start_row <= end_row:
+            title_name = peel_sheet.cell(rowx=start_row, colx=0).value
+
+            if isinstance(title_name, float):
+                peel_result = peel_sheet.cell(rowx=start_row, colx=1).value
+                peel_result_list.append(peel_result)
+
+            start_row += 1
+
+        peel_book.release_resources()
+        
+        return peel_result_list
+
+    def get_list_when_open_csv(self, csv_file_location):
+        item_no_list = ['1', '2', '3', '4', '5']
+        peel_result_list = []
+
+        with open(csv_file_location) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+
+            for row in csv_reader:
+                item_no = row[0]
+                if item_no in item_no_list:
+                    peel_result = row[1]
+                    peel_result_list.append(peel_result)
+                    if item_no == '5':
+                        break
+
+        csv_file.close()
+        
+        return peel_result_list
 
     def search_spc_file_location(self):
         spc_file_location = ""
@@ -238,73 +377,73 @@ class PsaTsaProgram:
 
     def open_spc_file(self, spc_file_location):
         if spc_file_location == "":
-            filename_open=self.spc_master_location
+            filename_open= self.spc_master_location
         else:
             filename_open = spc_file_location
 
-        spc_book = xl.open(filename=filename_open)
+        spc_book = xl.open(filename=filename_open, data_only=True)
         spc_sheet_list = spc_book.sheetnames
         spc_sheet1 = spc_book[spc_sheet_list[0]]
         spc_sheet2 = spc_book[spc_sheet_list[1]]
 
         return spc_book, spc_sheet1, spc_sheet2, filename_open
+
+    def clear_psa_tsa_treeview(self):
+        for member in self.psa_tas_treeview.get_children():
+            self.psa_tas_treeview.delete(member)
+
+    def check_iqic_has_update(self, spc_book, spc_sheet1, spc_sheet2, master_list):
+        col_spc_sheet2 = 2
+
+        for row in master_list:
+            iqic_no = row[0]
+            lot_no = row[3]
+
+            has_upate_at_spc_sheet1, column_update_in_spc_sheet1 = self.iqic_no_has_update_in_spc_sheet1(spc_sheet1 , master_list, lot_no)
+            # has_upate_at_spc_sheet2, column_update_in_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, iqic_no, lot_no)
+
+            if has_upate_at_spc_sheet1:
+                data = [iqic_no, lot_no, "อัพเดทไปแล้ว"]
+            else:
+                data = [iqic_no, lot_no, "โปรแกรมอัพเดท"]
             
-    def get_master_list(self):
-        product_input = self.product_cb.get()
-        machine_input = self.machine_cb.get()
-        month_input = self.month_cb.get()
-        year_input = self.year_cb.get()
-        peel_strength_input = self.peel_strength_name.get()
-        master_information_list = []
+            self.psa_tas_treeview.insert('', 'end', value=data)
 
-        month_input_list = month_input.split("'")
-        month_name = month_input_list[1][0:3]
-        new_master_file_location = os.path.join(self.master_list_location, year_input)
+    def iqic_no_has_update_in_spc_sheet1(self, spc_sheet1 , master_list, lot_no):
+        has_upate_at_spc_sheet1 = False
+        spc_column = 3
+        column_update_in_spc_sheet1 = spc_column
+        lot_no_in_spc_sheet1 = spc_sheet1.cell(row=54, column=spc_column).value
+        
+        while str(lot_no_in_spc_sheet1) != "":
+            if lot_no == lot_no_in_spc_sheet1:
+                has_upate_at_spc_sheet1 = True
+                return has_upate_at_spc_sheet1, column_update_in_spc_sheet1
 
-        for excel_file_name in os.listdir(new_master_file_location):
-            if month_name in excel_file_name and not excel_file_name.startswith("~$") and excel_file_name.endswith(".xlsx"):
-                master_file_location = os.path.join(new_master_file_location, excel_file_name)
-                master_book = xlrd.open_workbook(filename=master_file_location)
-                master_sheet = master_book.sheet_by_index(0)
+            # Loop command
+            spc_column += 1
+            lot_no_in_spc_sheet1 = spc_sheet1.cell(row=54, column=spc_column).value
+            column_update_in_spc_sheet1 = spc_column
 
-                start_row = 8
-                end_row = master_sheet.nrows
-                product_name = master_sheet.cell(rowx=start_row, colx=3).value
+        return has_upate_at_spc_sheet1, column_update_in_spc_sheet1
 
-                while str(product_name) != "":
-                    testing_no = master_sheet.cell(rowx=start_row, colx=1).value
-                    request_date_cell = master_sheet.cell(rowx=start_row, colx=2).value
-                    request_date = datetime.datetime(*xlrd.xldate_as_tuple(request_date_cell, master_book.datemode)).strftime('%x')
-                    lot_no = int(master_sheet.cell(rowx=start_row, colx=4).value)
-                    auto_press_machine = master_sheet.cell(rowx=start_row, colx=5).value
+    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, iqic_no, lot_no):
+        has_upate_at_spc_sheet2 = False
+        spc_column = 3
+        column_update_in_spc_sheet2 = spc_column
+        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
+        
+        while lot_no_in_spc_sheet2 != "":
+            if lot_no == lot_no_in_spc_sheet2:
+                has_upate_at_spc_sheet1 = True
+                return has_upate_at_spc_sheet2, column_update_in_spc_sheet2
 
-                    if machine_input == auto_press_machine and product_input in product_name:
-                        serial_barcode_list = []
-                        if peel_strength_input == 'flex':
-                            peel_column = 8
-                        else:
-                            peel_column = 10
+            # Loop command
+            spc_column += 1
+            lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
+            column_update_in_spc_sheet2 = spc_column
 
-                        for peel_row in range(start_row, start_row+5):
-                            serial_barcode = master_sheet.cell(rowx=peel_row, colx=peel_column).value
-                            serial_barcode_list.append(serial_barcode)
-
-                        master_information_list.append([testing_no, request_date, product_name, lot_no, auto_press_machine, serial_barcode_list])
-
-                    # Loop command
-                    start_row += 5
-                    product_name = master_sheet.cell(rowx=start_row, colx=3).value
-
-                master_book.release_resources()
-                break
-
-        return master_information_list
-
-    def open_file_in_iqic_no_folder(self, master_information_list):
-        pass
-    
-    def get_testing_no_in_master(self):
-        pass
+        return has_upate_at_spc_sheet2, column_update_in_spc_sheet2
 
     def close_and_save_spc_file(self, spc_book, spc_file_location, result_peel_location2, filename_open):
         year_input = self.year_cb.get()
@@ -325,11 +464,11 @@ class PsaTsaProgram:
             new_save_file_name = spc_file_location
 
         # Save file and Close Workbook
-        spc_book.save(new_save_file_location)
+        # spc_book.save(new_save_file_location)
         spc_book.close()
 
         # Run function for open SPC file
-        self.ask_open_file_name(new_save_file_location)
+        # self.ask_open_file_name(new_save_file_location)
 
     def ask_open_file_name(self, new_save_file_location):
         need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์ \n' + os.path.basename(new_save_file_location))
