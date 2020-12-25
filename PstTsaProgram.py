@@ -3,10 +3,13 @@ from tkinter import ttk
 from tkinter import messagebox as msb
 import xlrd
 import openpyxl as xl
+from openpyxl.styles import Alignment
+from openpyxl.styles.borders import Border, Side
 import csv
 import os
 import webbrowser
 import datetime
+import statistics as stat
 
 class PsaTsaProgram:
     def __init__(self):
@@ -14,6 +17,9 @@ class PsaTsaProgram:
         self.master_list_location = "\\\\Ta1d180613\\2.MASTER LIST RUNNING NUMBER\\2. Master list IPQC"
         self.result_peel_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\IPQC (SMT)\\2. Result peel strength (ผลการตรวจสอบจาก ANC)"
         self.spc_master_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\IPQC (SMT)\\99.SPC Master(ห้ามลบ)\\QF-A1-QUA-2209-1.xlsx"
+        self.tutorial_book = "\\\\Ta1d180613\\3.RESULT DATA PSA\\IPQC (SMT)\\100.โปรแกรม (ห้ามลบ)\\SMT PSA-TSA Hand Book.xlsx"
+        self.control_folder_location = "\\\\Ta1d180613\\3.RESULT DATA PSA\\IPQC (SMT)\\3.Control limit Record"
+        self.master_control_limit_record = "\\\\Ta1d180613\\3.RESULT DATA PSA\\IPQC (SMT)\\99.SPC Master(ห้ามลบ)\\Control limit Record.xlsx"
 
         # Widget Properties
         self.topic_font = ('Arial', 24, 'bold')
@@ -34,6 +40,16 @@ class PsaTsaProgram:
         self.spc_window.geometry(f'{WIDTH}x{HEIGHT}+{x}+{y}')
         self.spc_window.iconbitmap('fujikura_logo.ico')
 
+        # Menu bar
+        menubar = Menu(self.spc_window)
+        self.spc_window.config(menu=menubar)
+        helpmenu = Menu(menubar,tearoff=0)
+        menubar.add_cascade(label='Help',menu=helpmenu)
+        helpmenu.add_command(label='โปรแกรม', command=lambda: msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='โปรแกรมสำหรับ SMT PSA-TSA Version 01'))
+        helpmenu.add_command(label='วิธีการใช้',command=self.open_tutorial_book)
+        helpmenu.add_separator()
+        helpmenu.add_command(label='ติดต่อ',command=lambda: msb.showinfo('แจ้งเตือนไปยังผู้ใช้','หากโปรแกรมมีปัญหาหรือข้อสงสัยโทรเบอร์ 4308 ณัฐพล(แอ๊ค)'))
+
         # WIDGET Properties
         big_frame = Frame(self.spc_window)
         topic_label = Label(big_frame, text='SPC Report Program', font=self.topic_font, fg='white', bg='blue')
@@ -45,23 +61,33 @@ class PsaTsaProgram:
         product_label = Label(select_frame, text='Product Report:', font=self.detail_font)
         self.product_cb = ttk.Combobox(select_frame, justify='center', font=self.detail_font, width=18)
         machine_label = Label(select_frame, text='Machine No:', font=self.detail_font)
+        machine_label = Label(select_frame, text='Machine No:', font=self.detail_font)
         self.machine_cb = ttk.Combobox(select_frame, justify='center', font=self.detail_font, width=18)
         doc_req_label = Label(select_frame, text='Report Name:', font=self.detail_font)
         check_box_frame = Frame(select_frame)
         self.peel_strength_name = StringVar()
         flex_check_box = Radiobutton(check_box_frame, text='Flex Report', font=self.detail_font, variable=self.peel_strength_name, value='flex')
         liner_check_box = Radiobutton(check_box_frame, text='Liner Report', font=self.detail_font, variable=self.peel_strength_name, value='liner')
-        run_program_button = Button(big_frame, text='Run Program', font=('Arial', 18, 'bold'), command=self.spc_program_overview)
+        record_label = Label(select_frame, text='Record By:', font=self.detail_font)
+        record_variable = StringVar()
+        record_variable.set("SMT")
+        button_style = ttk.Style()
+        button_style.configure('my.TButton', font=('Arial', 18))
+        self.record_entry = ttk.Entry(select_frame, font=self.detail_font, textvariable=record_variable, justify='center', width=19)
+        run_program_button = ttk.Button(big_frame, text='Run Program', style='my.TButton', command=self.spc_program_overview)
 
         # Treeview Widget
+        treeview_frame = Frame(big_frame)
         headers = ['Testing No.', 'Lot No.', 'Report status']
-        self.psa_tas_treeview = ttk.Treeview(big_frame, column=headers, show='headings', height=9)
+        self.psa_tas_treeview = ttk.Treeview(treeview_frame, column=headers, show='headings', height=7)
+        vertical_scrollbar = ttk.Scrollbar(treeview_frame, orient="vertical", command=self.psa_tas_treeview.yview)
+        self.psa_tas_treeview.configure(yscrollcommand=vertical_scrollbar.set)
         style = ttk.Style()
         style.configure("Treeview.Heading", font=('Arial', 14, 'bold'), foreground="green")
         style.configure("Treeview", font=('Arial', 10))
         for header in headers:
             self.psa_tas_treeview.heading(header, text=header)
-            self.psa_tas_treeview.column(header, anchor='center', width=170, minwidth=0)
+            self.psa_tas_treeview.column(header, anchor='center', width=160, minwidth=0)
 
         # Widget Event
         self.year_cb.bind('<Button-1>', self.year_click)
@@ -73,7 +99,7 @@ class PsaTsaProgram:
         # Widget Position
         big_frame.pack()
         topic_label.grid(row=0, column=0, pady=10, ipadx=10)
-        select_frame.grid(row=1, column=0, pady=5)
+        select_frame.grid(row=1, column=0)
         year_label.grid(row=0, column=0, padx=5, pady=5)
         self.year_cb.grid(row=0, column=1, padx=5, pady=5, ipady=2)
         month_label.grid(row=1, column=0, padx=5, pady=5)
@@ -86,11 +112,21 @@ class PsaTsaProgram:
         check_box_frame.grid(row=4, column=1, padx=5, pady=5)
         flex_check_box.grid(row=0, column=0, padx=5)
         liner_check_box.grid(row=0, column=1, padx=5)
-        run_program_button.grid(row=2, column=0, pady=2, ipadx=20)
-        self.psa_tas_treeview.grid(row=4, column=0, pady=5)
+        record_label.grid(row=5, column=0, padx=5, pady=5)
+        self.record_entry.grid(row=5, column=1, padx=5, pady=5, ipady=2)
+        run_program_button.grid(row=2, column=0, pady=2, ipadx=20, ipady=3)
+        treeview_frame.grid(row=4, column=0, pady=5)
+        self.psa_tas_treeview.grid(row=0, column=0)
+        vertical_scrollbar.grid(row=0, column=1, ipady=60)
 
         # GUI Activate
         self.spc_window.mainloop()
+
+    def open_tutorial_book(self):
+        try:
+            webbrowser.open(url=self.tutorial_book)
+        except:
+            pass
 
     def year_click(self, event):
         folder_name_list = []
@@ -203,7 +239,9 @@ class PsaTsaProgram:
         month_input = self.month_cb.get()
         product_input = self.product_cb.get()
         machine_input = self.machine_cb.get()
-
+    
+        self.clear_psa_tsa_treeview()
+        
         if year_input == "" and month_input == "" and product_input == "" and machine_input == "":
             msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='คุณกรอกข้อมูลข้างบนไม่ครบถ้วน')
         else:
@@ -213,9 +251,9 @@ class PsaTsaProgram:
             if len(master_list) != 0:
                 spc_file_location, result_peel_location2 = self.search_spc_file_location()
                 spc_book, spc_sheet1, spc_sheet2, filename_open= self.open_spc_file(spc_file_location)
-                self.clear_psa_tsa_treeview()
                 self.check_iqic_has_update(spc_book, spc_sheet1, spc_sheet2, master_list)
-                self.close_and_save_spc_file(spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open)
+                self.close_and_save_spc_file(spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open, master_list)
+                
             else:
                 msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='ยังไม่มีข้อมูลสำหรับการอัพเดท')
             
@@ -328,7 +366,7 @@ class PsaTsaProgram:
             title_name = peel_sheet.cell(rowx=start_row, colx=0).value
 
             if isinstance(title_name, float):
-                peel_result = peel_sheet.cell(rowx=start_row, colx=1).value
+                peel_result = float(peel_sheet.cell(rowx=start_row, colx=1).value)
                 peel_result_list.append(peel_result)
 
             start_row += 1
@@ -347,7 +385,7 @@ class PsaTsaProgram:
             for row in csv_reader:
                 item_no = row[0]
                 if item_no in item_no_list:
-                    peel_result = row[1]
+                    peel_result = float(row[1])
                     peel_result_list.append(peel_result)
                     if item_no == '5':
                         break
@@ -415,21 +453,21 @@ class PsaTsaProgram:
             self.psa_tas_treeview.insert('', 'end', value=data)
 
     def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, lot_no):
-        has_upate_at_spc_sheet1 = False
-        spc_column = 3
-        lot_no_in_spc_sheet1 = spc_sheet2.cell(row=4, column=spc_column).value
+        has_upate_at_spc_sheet2 = False
+        spc_column = 1
+        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
         
-        while str(lot_no_in_spc_sheet1) != "None":
-            if str(lot_no) == str(lot_no_in_spc_sheet1):
-                has_upate_at_spc_sheet1 = True
-                return has_upate_at_spc_sheet1
+        while str(lot_no_in_spc_sheet2) != "None":
+            if str(lot_no) in str(lot_no_in_spc_sheet2):
+                has_upate_at_spc_sheet2 = True
+                return has_upate_at_spc_sheet2
 
             # Loop command
             spc_column += 1
-            lot_no_in_spc_sheet1 = spc_sheet2.cell(row=54, column=spc_column).value
+            lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
             column_update_in_spc_sheet1 = spc_column
 
-        return has_upate_at_spc_sheet1
+        return has_upate_at_spc_sheet2
 
     def update_result_to_spc_sheet1(self, spc_sheet1, master_row):
         # Search Last Column Update
@@ -469,10 +507,14 @@ class PsaTsaProgram:
         spc_sheet2.cell(row=4, column=spc_column).value = lot_no
         for serial_barcode in serial_barcode_list:
             spc_sheet2.cell(row=spc_row, column=spc_column).value = serial_barcode
-            spc_sheet2.cell(row=13, column=spc_column).value = 'kritsada'
+            spc_sheet2.cell(row=13, column=spc_column).value = self.record_entry.get()
             spc_row += 1
 
-    def close_and_save_spc_file(self, spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open):
+    def import_spec_control_limit(self, last_spc_file_location, spc_sheet1):
+        last_spc_book = xlrd.open_workbook(filename=last_spc_file_location)
+        last_spc_sheet = last_spc_book.sheet_by_index(0)
+
+    def close_and_save_spc_file(self, spc_book, spc_sheet1, spc_file_location, result_peel_location2, filename_open, master_list):
         year_input = self.year_cb.get()
         month_input = self.month_cb.get()
         product_input = self.product_cb.get()
@@ -484,22 +526,32 @@ class PsaTsaProgram:
         if spc_file_location == "" and peel_strength_input == 'flex':
             new_save_file_name = 'FLEX PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
-            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input)
+            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location)
+            self.record_last_control_limit_to_spc(spc_sheet1)
+
         elif spc_file_location == "" and peel_strength_input == 'liner':
             new_save_file_name = 'LINER PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
-            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input)
+            self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location)
+            self.record_last_control_limit_to_spc(spc_sheet1)
+
         else:
             new_save_file_location = spc_file_location
 
+
         # Save file and Close Workbook
-        spc_book.save(new_save_file_location)
-        spc_book.close()
+        try:
+            spc_book.save(new_save_file_location)
+            spc_book.close()
 
-        # Run function for open SPC file
-        self.ask_open_file_name(new_save_file_location)
+            self.open_control_limit_record(master_list)
 
-    def update_spc_information_detail(self, spc_sheet1, new_date_format, machine_input, product_input):
+            # Run function for open SPC file
+            self.ask_open_file_name(new_save_file_location)
+        except Exception as e:
+            msb.showwarning(title='แจ้งเตือนไปยังผู้ใช้', message=f'กรุณาปิดไฟล์ \n {os.path.basename(new_save_file_location)} \n แล้วทำการรันโปรแกรมใหม่อีกครั้ง')
+
+    def update_spc_information_detail(self, spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location):
         spc_sheet1.cell(row=2, column=3).value = 'IPQC PSA, TSA'
         spc_sheet1.cell(row=3, column=3).value = 'FLEX PEELSTRENGTH'
         spc_sheet1.cell(row=4, column=3).value = machine_input
@@ -510,14 +562,159 @@ class PsaTsaProgram:
         spc_sheet1.cell(row=4, column=7).value = '-'
         spc_sheet1.cell(row=5, column=7).value = "5 PCS / SHIFT"
 
-    def check_last_spc_format_of_product_input_exist(self):
-        pass
+    def record_last_control_limit_to_spc(self, spc_sheet1):
+        year_input = self.year_cb.get()
+        last_year_input = int(year_input) - 1
+        month_input = self.month_cb.get()
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        report_input = self.peel_strength_name.get()
 
-    def search_last_spc_format_of_product_input(self):
-        pass
+        if "JAN" in month_input:
+            control_limit_folder_path = self.control_folder_location + "\\" + str(last_year_input)
+            control_limit_file_name = "Control limit Record " + str(last_year_input) + ".xlsx"
+        else:
+            control_limit_folder_path = self.control_folder_location + "\\" + year_input
+            control_limit_file_name = "Control limit Record " + year_input + ".xlsx"
 
-    def import_spec_control_limit(self):
-        pass
+        control_limit_file_location = os.path.join(control_limit_folder_path, control_limit_file_name)
+        if os.path.isfile(control_limit_file_location):
+            control_book = xlrd.open_workbook(filename=control_limit_file_location)
+            control_sheet = control_book.sheet_by_index(0)
+            min_row = 0
+            max_row = control_sheet.nrows - 1
+
+            # Search Row Record
+            while max_row >= min_row:
+                month_in_table = control_sheet.cell(rowx=max_row, colx=1).value
+                product_name_in_table = control_sheet.cell(rowx=max_row, colx=2).value
+                machine_in_table = control_sheet.cell(rowx=max_row, colx=3).value
+                report_name_in_table = control_sheet.cell(rowx=max_row, colx=4).value
+
+                condition_filled = (product_input == product_name_in_table and machine_input == machine_in_table and report_input == report_name_in_table and month_input != month_in_table)
+
+                if condition_filled:
+                    # X chart Control Limit
+                    uclx = control_sheet.cell(rowx=max_row, colx=5).value
+                    clx = control_sheet.cell(rowx=max_row, colx=6).value
+                    lclx = control_sheet.cell(rowx=max_row, colx=7).value
+                    # R chart Control Limit
+                    uclr = control_sheet.cell(rowx=max_row, colx=8).value
+                    clr = control_sheet.cell(rowx=max_row, colx=9).value
+                    lclr = control_sheet.cell(rowx=max_row, colx=10).value
+
+                    # Filled Last control limit to spc
+                    spc_sheet1.cell(row=4, column=12).value = clx
+                    spc_sheet1.cell(row=5, column=12).value = uclx
+                    spc_sheet1.cell(row=6, column=12).value = lclx
+                    spc_sheet1.cell(row=4, column=14).value = clr
+                    spc_sheet1.cell(row=5, column=14).value = uclr
+                    spc_sheet1.cell(row=6, column=14).value = lclr
+                    break
+
+                # Loop command
+                max_row -= 1
+            
+            control_book.release_resources()
+
+    def open_control_limit_record(self, master_list):
+        year_input = self.year_cb.get()
+
+        control_limit_location = self.control_folder_location + "\\" + year_input + "\\Control limit Record " + year_input + ".xlsx"
+        if os.path.isfile(control_limit_location):
+            filename_record = control_limit_location
+        else:
+            filename_record = self.master_control_limit_record
+
+        try:
+            control_book = xl.load_workbook(filename=filename_record)
+            control_sheet = control_book[control_book.sheetnames[0]]
+
+            # Run function
+            uclx, clx, lclx, uclr, clr, lclr = self.calculate_current_control_limit(master_list)
+            self.record_control_limit(uclx, clx, lclx, uclr, clr, lclr, control_sheet)
+
+            control_book.save(filename=filename_record)
+            control_book.close()
+        except Exception:
+            msb.showwarning('แจ้งเตือนไปยังผู้ใช้', message=f'กรุณาปิดไฟล์ที่ชื่อ \n {os.path.basename(filename_record)} \n แล้วทำการรันใหม่อีกครั้ง')
+
+    def calculate_current_control_limit(self, master_list):
+        xbar_r = []
+        r = []
+
+        # Calculate Xbar i and R i of each subgroup
+        for row in master_list:
+            peel_result_list = row[6]
+            avg = stat.mean(peel_result_list)
+            # rng = range = max - min
+            rng = max(peel_result_list) - min(peel_result_list)
+            xbar_r.append(avg)
+            r.append(rng)
+
+        xbarbar = stat.mean(xbar_r)
+        rbar = stat.mean(r)
+
+        # Calculate Xbar formula
+        uclx = round(xbarbar + (0.577 * rbar), 3)
+        clx = round(xbarbar, 3)
+        lclx = round(xbarbar - (0.577 * rbar), 3)
+        # Calculate R formula
+        uclr = round(2.114 * rbar, 3)
+        clr = round(rbar, 3)
+        lclr = 0
+
+        return uclx, clx, lclx, uclr, clr, lclr
+
+    def record_control_limit(self, uclx, clx, lclx, uclr, clr, lclr, control_sheet):
+        has_filled = False
+        year_input = self.year_cb.get()
+        month_input = self.month_cb.get()
+        product_input = self.product_cb.get()
+        machine_input = self.machine_cb.get()
+        report_input = self.peel_strength_name.get()
+        record_by_input = self.record_entry.get()
+
+        max_row = control_sheet.max_row
+        min_row = 1
+        while min_row <= max_row:
+            month_table = control_sheet.cell(row=min_row, column=2).value
+            product_table = control_sheet.cell(row=min_row, column=3).value
+            machine_table = control_sheet.cell(row=min_row, column=4).value
+            report_name_table = control_sheet.cell(row=min_row, column=5).value
+
+            update_condition = (month_input == month_table and product_input == product_table and machine_input == machine_table and report_name_table == report_input)
+            if update_condition:
+                has_filled = True
+                control_sheet.cell(row=min_row, column=6).value = uclx
+                control_sheet.cell(row=min_row, column=7).value = clx
+                control_sheet.cell(row=min_row, column=8).value = lclx
+                control_sheet.cell(row=min_row, column=9).value = uclr
+                control_sheet.cell(row=min_row, column=10).value = clr
+                control_sheet.cell(row=min_row, column=11).value = lclr
+                break
+
+            # Loop command
+            min_row += 1
+
+        if has_filled == False:
+            last_filled_row = int(control_sheet.max_row) + 1
+            list_filled = [year_input, month_input, product_input, machine_input, report_input, 
+                          uclx, clx, lclx, uclr, clr, lclr, record_by_input]
+
+            filled_col = 1
+            for item in list_filled:
+                control_sheet.cell(row=last_filled_row, column=filled_col).value = item
+
+                thin_border = Border(left=Side(style='thin'), 
+                                    right=Side(style='thin'), 
+                                    top=Side(style='thin'), 
+                                    bottom=Side(style='thin'))
+                center_align = Alignment(horizontal='center')
+                control_sheet.cell(row=last_filled_row, column=filled_col).alignment = center_align
+                control_sheet.cell(row=last_filled_row, column=filled_col).border = thin_border
+
+                filled_col += 1
 
     def ask_open_file_name(self, new_save_file_location):
         need_open_spc_file = msb.askyesno(title='แจ้งเตือนไปยังผู้ใช้', message='คุณต้องการจะเปิดไฟล์ \n' + os.path.basename(new_save_file_location))
