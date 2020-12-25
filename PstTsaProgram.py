@@ -38,7 +38,7 @@ class PsaTsaProgram:
         self.spc_window.title('IPQC-PSATSA Program')
         self.spc_window.resizable(0, 0)
         self.spc_window.geometry(f'{WIDTH}x{HEIGHT}+{x}+{y}')
-        self.spc_window.iconbitmap('fujikura_logo.ico')
+        # self.spc_window.iconbitmap('fujikura_logo.ico')
 
         # Menu bar
         menubar = Menu(self.spc_window)
