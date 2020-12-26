@@ -242,7 +242,7 @@ class PsaTsaProgram:
     
         self.clear_psa_tsa_treeview()
         
-        if year_input == "" and month_input == "" and product_input == "" and machine_input == "":
+        if year_input == "" or month_input == "" or product_input == "" or machine_input == "":
             msb.showinfo(title='แจ้งเตือนไปยังผู้ใช้', message='คุณกรอกข้อมูลข้างบนไม่ครบถ้วน')
         else:
             # Function Overview
@@ -441,7 +441,7 @@ class PsaTsaProgram:
             iqic_no = row[0]
             lot_no = row[3]
 
-            has_upate_at_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, lot_no)
+            has_upate_at_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, lot_no, iqic_no)
             
             if has_upate_at_spc_sheet2:
                 data = [iqic_no, lot_no, "อัพเดทไปแล้ว"]
@@ -452,13 +452,15 @@ class PsaTsaProgram:
             
             self.psa_tas_treeview.insert('', 'end', value=data)
 
-    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, lot_no):
+    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, lot_no, iqic_no):
         has_upate_at_spc_sheet2 = False
         spc_column = 1
-        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
-        
+        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=3, column=spc_column).value
+
         while str(lot_no_in_spc_sheet2) != "None":
-            if str(lot_no) in str(lot_no_in_spc_sheet2):
+            iqic_no_in_spc_sheet2 = self.get_ipic_no_of_lot_no_in_spc_sheet2(master_list, lot_no_in_spc_sheet2, iqic_no)
+            
+            if str(lot_no) in str(lot_no_in_spc_sheet2) and iqic_no == iqic_no_in_spc_sheet2:
                 has_upate_at_spc_sheet2 = True
                 return has_upate_at_spc_sheet2
 
@@ -468,6 +470,19 @@ class PsaTsaProgram:
             column_update_in_spc_sheet1 = spc_column
 
         return has_upate_at_spc_sheet2
+
+    def get_ipic_no_of_lot_no_in_spc_sheet2(self, master_list, lot_no_in_spc_sheet2, iqic_no):
+        ipic_no_in_list = ""
+
+        for row in master_list:
+            lot_no_in_list = row[3]
+
+            if lot_no_in_spc_sheet2 == lot_no_in_list:
+                ipic_no_in_list = row[0]
+                break
+        
+        return ipic_no_in_list
+
 
     def update_result_to_spc_sheet1(self, spc_sheet1, master_row):
         # Search Last Column Update
@@ -503,6 +518,7 @@ class PsaTsaProgram:
         serial_barcode_list = master_row[5]
         spc_row = 5
 
+        # request_date => 20-Nov
         spc_sheet2.cell(row=3, column=spc_column).value = request_date
         spc_sheet2.cell(row=4, column=spc_column).value = lot_no
         for serial_barcode in serial_barcode_list:
@@ -527,13 +543,11 @@ class PsaTsaProgram:
             new_save_file_name = 'FLEX PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
             self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location)
-            self.record_last_control_limit_to_spc(spc_sheet1)
 
         elif spc_file_location == "" and peel_strength_input == 'liner':
             new_save_file_name = 'LINER PEEL STRENGTH_' + product_input + "_" + machine_input + "_" + new_date_format + ".xlsx"
             new_save_file_location = os.path.join(result_peel_location2, new_save_file_name)
             self.update_spc_information_detail(spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location)
-            self.record_last_control_limit_to_spc(spc_sheet1)
 
         else:
             new_save_file_location = spc_file_location
@@ -544,6 +558,7 @@ class PsaTsaProgram:
             spc_book.save(new_save_file_location)
             spc_book.close()
 
+            self.record_last_control_limit_to_spc(spc_sheet1)
             self.open_control_limit_record(master_list)
 
             # Run function for open SPC file
