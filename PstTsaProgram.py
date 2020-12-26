@@ -630,11 +630,12 @@ class PsaTsaProgram:
             control_book = xl.load_workbook(filename=filename_record)
             control_sheet = control_book[control_book.sheetnames[0]]
 
-            # Run function
-            uclx, clx, lclx, uclr, clr, lclr = self.calculate_current_control_limit(master_list)
-            self.record_control_limit(uclx, clx, lclx, uclr, clr, lclr, control_sheet)
-
-            control_book.save(filename=filename_record)
+            # Run function to record SPC Program in AIAG Standard
+            if len(master_list) >= 25:
+                uclx, clx, lclx, uclr, clr, lclr = self.calculate_current_control_limit(master_list)
+                self.record_control_limit(uclx, clx, lclx, uclr, clr, lclr, control_sheet)
+                control_book.save(filename=filename_record)
+                
             control_book.close()
         except Exception:
             msb.showwarning('แจ้งเตือนไปยังผู้ใช้', message=f'กรุณาปิดไฟล์ที่ชื่อ \n {os.path.basename(filename_record)} \n แล้วทำการรันใหม่อีกครั้ง')
