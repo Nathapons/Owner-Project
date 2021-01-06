@@ -3,7 +3,7 @@ from tkinter import ttk
 from tkinter import messagebox as msb
 import xlrd
 import openpyxl as xl
-from openpyxl.styles import Alignment
+from openpyxl.styles import Alignment, NamedStyle
 from openpyxl.styles.borders import Border, Side
 import csv
 import os
@@ -296,7 +296,7 @@ class PsaTsaProgram:
         while str(product_name) != "":
             testing_no = str(master_sheet.cell(rowx=start_row, colx=1).value).strip()
             request_date_cell = master_sheet.cell(rowx=start_row, colx=2).value
-            request_date = datetime.datetime(*xlrd.xldate_as_tuple(request_date_cell, master_book.datemode)).strftime('%x')
+            request_date = datetime.datetime(*xlrd.xldate_as_tuple(request_date_cell, master_book.datemode))
             lot_no = int(master_sheet.cell(rowx=start_row, colx=4).value)
             auto_press_machine = master_sheet.cell(rowx=start_row, colx=5).value
 
@@ -336,26 +336,26 @@ class PsaTsaProgram:
                 # Check case file name
                 if "SP" in file.upper():
                     continue
-                elif peel_strength_input == "flex" and file.upper().endswith("CSV") and "F" in file:
+                elif peel_strength_input == "flex" and file.upper().endswith("CSV") and "-F" in file:
                     csv_file_location = iqic_folder_location + "\\" + file
                     peel_result_list = self.get_list_when_open_csv(csv_file_location)
                     break
-                elif peel_strength_input == "flex" and file.upper().endswith("XLS") and "F" in file:
+                elif peel_strength_input == "flex" and file.upper().endswith("XLS") and "-F" in file:
                     excel_file_location = iqic_folder_location + "\\" + file
                     peel_result_list = self.get_list_when_open_excel(excel_file_location)
                     break
-                elif peel_strength_input == "liner" and file.upper().endswith("CSV") and "L" in file:
+                elif peel_strength_input == "liner" and file.upper().endswith("CSV") and "-L" in file:
                     csv_file_location = iqic_folder_location + "\\" + file
                     peel_result_list = self.get_list_when_open_csv(csv_file_location)
                     break
-                elif peel_strength_input == "liner" and file.upper().endswith("XLS") and "L" in file:
+                elif peel_strength_input == "liner" and file.upper().endswith("XLS") and "-L" in file:
                     excel_file_location = iqic_folder_location + "\\" + file
-                    peel_result_list = self.get_list_when_open_excel(excel_file_location)
                     break
 
         return peel_result_list
 
     def get_list_when_open_excel(self, excel_file_location):
+        item_no_list = ['1', '2', '3', '4', '5']
         peel_book = xlrd.open_workbook(filename=excel_file_location)
         peel_sheet = peel_book.sheet_by_index(0)
         start_row = 0
@@ -435,13 +435,12 @@ class PsaTsaProgram:
             self.psa_tas_treeview.delete(member)
 
     def check_iqic_has_update(self, spc_book, spc_sheet1, spc_sheet2, master_list):
-        col_spc_sheet2 = 2
-
         for row in master_list:
             iqic_no = row[0]
             lot_no = row[3]
+            serial_barcode = row[5]
 
-            has_upate_at_spc_sheet2 = self.iqic_no_has_update_in_spc_sheet2(spc_sheet2 , master_list, lot_no, iqic_no)
+            has_upate_at_spc_sheet2 = self.get_iqic_no_of_lot_no(spc_sheet2 , master_list, lot_no, iqic_no, serial_barcode)
             
             if has_upate_at_spc_sheet2:
                 data = [iqic_no, lot_no, "อัพเดทไปแล้ว"]
@@ -452,36 +451,26 @@ class PsaTsaProgram:
             
             self.psa_tas_treeview.insert('', 'end', value=data)
 
-    def iqic_no_has_update_in_spc_sheet2(self, spc_sheet2 , master_list, lot_no, iqic_no):
-        has_upate_at_spc_sheet2 = False
-        spc_column = 1
-        lot_no_in_spc_sheet2 = spc_sheet2.cell(row=3, column=spc_column).value
+    def get_iqic_no_of_lot_no(self, spc_sheet2 , master_list, lot_no, iqic_no, serial_barcode):
+        has_update_at_spc_sheet2 = False
+        spc_column = 2
 
-        while str(lot_no_in_spc_sheet2) != "None":
-            iqic_no_in_spc_sheet2 = self.get_ipic_no_of_lot_no_in_spc_sheet2(master_list, lot_no_in_spc_sheet2, iqic_no)
-            
-            if str(lot_no) in str(lot_no_in_spc_sheet2) and iqic_no == iqic_no_in_spc_sheet2:
-                has_upate_at_spc_sheet2 = True
-                return has_upate_at_spc_sheet2
+        while spc_column <= 1001:
+            lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
+            barcode_list_in_spc_sheet2 = [spc_sheet2.cell(row=5, column=spc_column).value, 
+                                         spc_sheet2.cell(row=6, column=spc_column).value,
+                                         spc_sheet2.cell(row=7, column=spc_column).value, 
+                                         spc_sheet2.cell(row=8, column=spc_column).value,
+                                         spc_sheet2.cell(row=9, column=spc_column).value]
+
+            if lot_no_in_spc_sheet2 == lot_no and serial_barcode == barcode_list_in_spc_sheet2:
+                has_update_at_spc_sheet2 = True
+                break
 
             # Loop command
             spc_column += 1
-            lot_no_in_spc_sheet2 = spc_sheet2.cell(row=4, column=spc_column).value
-            column_update_in_spc_sheet1 = spc_column
 
-        return has_upate_at_spc_sheet2
-
-    def get_ipic_no_of_lot_no_in_spc_sheet2(self, master_list, lot_no_in_spc_sheet2, iqic_no):
-        ipic_no_in_list = ""
-
-        for row in master_list:
-            lot_no_in_list = row[3]
-
-            if lot_no_in_spc_sheet2 == lot_no_in_list:
-                ipic_no_in_list = row[0]
-                break
-        
-        return ipic_no_in_list
+        return has_update_at_spc_sheet2
 
 
     def update_result_to_spc_sheet1(self, spc_sheet1, master_row):
@@ -520,6 +509,7 @@ class PsaTsaProgram:
 
         # request_date => 20-Nov
         spc_sheet2.cell(row=3, column=spc_column).value = request_date
+        spc_sheet2.cell(row=3, column=spc_column).number_format = 'DD-MMM'
         spc_sheet2.cell(row=4, column=spc_column).value = lot_no
         for serial_barcode in serial_barcode_list:
             spc_sheet2.cell(row=spc_row, column=spc_column).value = serial_barcode
@@ -568,7 +558,13 @@ class PsaTsaProgram:
 
     def update_spc_information_detail(self, spc_sheet1, new_date_format, machine_input, product_input, new_save_file_location):
         spc_sheet1.cell(row=2, column=3).value = 'IPQC PSA, TSA'
-        spc_sheet1.cell(row=3, column=3).value = 'FLEX PEELSTRENGTH'
+
+        if self.peel_strength_name.get() == "flex":
+            peel_name = 'FLEX PEEL STRENGTH'
+        else:
+            peel_name = 'LINER PEEL STRENGTH'
+
+        spc_sheet1.cell(row=3, column=3).value = peel_name
         spc_sheet1.cell(row=4, column=3).value = machine_input
         spc_sheet1.cell(row=5, column=3).value = '-'
 
