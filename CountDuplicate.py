@@ -2,6 +2,9 @@ from collections import Counter
 from tkinter import *
 from tkinter import messagebox as msb
 from tkinter import ttk
+from tkinter.filedialog import asksaveasfilename
+import pandas as pd
+import webbrowser
 import os
 
 
@@ -29,7 +32,9 @@ class CountDuplicate:
         self.month_cb = ttk.Combobox(select_frame, justify='center', font=('Arial', 16), width=18)
         date_label = Label(select_frame, text='Date Report:', font=('Arial', 16))
         self.date_cb = ttk.Combobox(select_frame, justify='center', font=('Arial', 16), width=18)
-        run_button = Button(big_frame, text='Run Program', command=self.programs_work,font=('Arial', 16), width=10)
+        button_frame = Frame(big_frame)
+        run_button = Button(button_frame, text='Run Program', command=self.programs_work,font=('Arial', 16), width=12)
+        csv_button = Button(button_frame, text="Import CSV", command=self.import_csv,font=('Arial', 16), width=12)
 
         treeview_frame = Frame(big_frame)
         headers = ['CSV FILE', 'PIN No', 'RETEST']
@@ -42,7 +47,7 @@ class CountDuplicate:
 
             col_width = 150
             if header == 'CSV FILE':
-                col_width = 300
+                col_width = 350
             elif header == 'RETEST':
                 col_width = 80
             self.count_duplicate_tree.column(header, anchor='center', width=col_width, minwidth=0)
@@ -63,9 +68,11 @@ class CountDuplicate:
         self.month_cb.grid(row=2, column=1, pady=5, ipadx=10)
         date_label.grid(row=3, column=0, pady=5, ipadx=20)
         self.date_cb.grid(row=3, column=1, pady=5, ipadx=10)
-        run_button.grid(row=2, column=0, ipadx=10)
+        button_frame.grid(row=2, column=0, ipadx=10)
+        run_button.grid(row=0, column=1, padx=10)
+        csv_button.grid(row=0, column=0, padx=10)
         treeview_frame.grid(row=3, column=0, ipadx=10)
-        self.count_duplicate_tree.grid(row=0, column=0, ipadx=10, pady=10)
+        self.count_duplicate_tree.grid(row=0, column=0, pady=10)
         vertical_scrollbar.grid(row=0, column=1, ipady=70)
         root.mainloop()
 
@@ -126,8 +133,30 @@ class CountDuplicate:
                     data = [new_csv_file[index], pin_no, my_dict[key]]
                     self.count_duplicate_tree.insert('', 'end', value=data)
                 index += 1
+
+            msb.showinfo(title="Information", message="Import Complete")
         else:
             msb.showinfo(title="Information", message="กรุณากรอกข้อมูลให้ครบ")
+
+    def import_csv(self):
+        if len(self.count_duplicate_tree.get_children()) > 0:
+            data = [self.count_duplicate_tree.item(item)['values'] for item in self.count_duplicate_tree.get_children ()]
+            df = pd.DataFrame(data, columns= ['CSV FILE', 'PIN No', 'RETEST'])
+
+            msb.showinfo(title="Information", message="กรุณาตั้งชื่อไฟล์ Result")
+            try:
+                csv_file = asksaveasfilename(filetypes=[("CSV files", '*.csv')], defaultextension='.csv')
+                df.to_csv(csv_file, index = False, header=True)
+
+                answer = msb.askyesno(title='Ask to User', message=f'คุณต้องการจะเปิดไฟล์ {os.path.basename(csv_file)}')
+                if answer:
+                    webbrowser.open(csv_file)
+            except:
+                msb.showwarning(title="Information", message="คุณตั้งชื่อไฟล์ผิดกรุณาลองใหม่อีกครั้ง")
+        else:
+            msb.showwarning(title="Information", message="คุณยังไม่ทำการImport ข้อมูล")
+            
+
 
 app = CountDuplicate()
 app.ui()
