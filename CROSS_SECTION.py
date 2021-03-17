@@ -2,7 +2,12 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox as msb
 import openpyxl as xl
+from openpyxl.drawing.image import Image
+from openpyxl.drawing.xdr import XDRPoint2D, XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU, cm_to_EMU
+from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
 import xlrd
+from pathlib import Path
 import os
 
 
@@ -28,16 +33,6 @@ class CrossSection():
         root.geometry(f'{WIDTH}x{HEIGHT}+{center_width}+{center_height}')
         root.config(bg='white')
         root.resizable(0, 0)
-
-        # combostyle = ttk.Style()
-        # combostyle.theme_create('combostyle', parent='alt',
-        #                  settings = {'TCombobox':
-        #                              {'configure':
-        #                               {'fieldbackground': '#ffffb3',
-        #                                'selectbackground': 'blue',
-        #                                'background': 'white'
-        #                                }}})
-        # combostyle.theme_use('combostyle')
 
         # WIDGET PROPERTIES
         big_frame = Frame(root, bg='white')
@@ -104,13 +99,13 @@ class CrossSection():
             msb.showwarning(title='Alarm to User', message='คุณยังกรอกข้อมูลไม่ครบถ้วน')
         else:
             self.program_overview()
-            msb.showinfo(title='Information', message='Complete')
     
     def program_overview(self):
         result_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\{self.lot_box.get()}.xlsx'
-        report_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Report_{self.lot_box.get()}.xlsx'
+        report_path = f'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report\Report_{self.product_box.get()}.xlsx'
 
-        try:
+        # Check file Exist in path?
+        if os.path.isfile(result_path) and os.path.isfile(report_path):
             # Get Parameter Return Form open_excel_file function
             result_wb = self.open_excel_file_read_state(excel_path=result_path)
             report_wb = self.oepn_excel_file(excel_path=report_path)
@@ -146,8 +141,13 @@ class CrossSection():
             result_wb.release_resources()
             report_wb.save(filename=f'Report_{self.lot_box.get()}.xlsx')
             report_wb.close()
-        except Exception:
-            print("Error")
+
+            msb.showinfo(title='Information', message='Complete')
+
+        elif os.path.isfile(report_path):
+            pass
+        else:
+            msb.showwarning(message=f'ไม่มีไฟล์ที่ชื่อ \n {result_path}', title='Alarm To User')
 
     def oepn_excel_file(self, excel_path):
         wb = xl.open(filename=excel_path)
@@ -166,7 +166,11 @@ class CrossSection():
 
     # ------------------------------------------------ Solder Mask Page ---------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
-        flex_row, bga_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        flex_row, bga_pic_row, horbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        # Import data to Document
+        import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+        # Import picture to ducument
+        self.hotbar_import_picture(report_ws, bga_pic_row, horbar_pic_row, con_pic_row, import_name)
 
     def solder_get_pasteposition(self, report_ws):
         report_row = 1
@@ -174,6 +178,7 @@ class CrossSection():
         bga_col = 1
         thick_col = 1
         off_col = 1
+        horbar_pic_row = 1
 
         while report_row != report_ws.max_row:
             detail = str(report_ws.cell(row=report_row, column=1).value).upper()
@@ -192,18 +197,149 @@ class CrossSection():
 
             elif detail == '1':
                 flex_row = report_row
-            elif detail == 'BGA':
+            elif 'BGA' in detail:
                 bga_pic_row = report_row
+            elif 'HOT' in detail:
+                horbar_pic_row = report_row
             elif 'CONNECTOR' in detail:
-                con_pic_row = report_row
+                con_pic_row = report_row - 1
 
             # Loop command
             report_row += 1
 
-        return flex_row, bga_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col
+        return flex_row, bga_pic_row, horbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col
 
-    def hotbar_import_data(self, flex_row, hotbar_col, bga_col, thick_col, off_col):
-        pass
+    def hotbar_import_data(self, report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col):
+        b2b_offset = result_ws.cell(rowx=6, colx=2).value
+        b2b_coverage = result_ws.cell(rowx=7, colx=2).value
+        b2b_thickness = result_ws.cell(rowx=8, colx=2).value
+
+        if (not b2b_offset) and (not b2b_coverage) and (not b2b_thickness):
+            # import hotbar to format
+            import_name = 'B2B/BGA'
+            result_offset_row = 13
+            result_coverage_row = 14
+            result_thickness_row = 15
+            report_cover_column = hotbar_col
+        else:
+            # import B2B/BGA to format
+            import_name = 'HOT BAR'
+            result_offset_row = 6
+            result_coverage_row = 7
+            result_thickness_row = 8
+            report_cover_column = bga_col
+
+        result_col = 2
+        while result_col <= result_ws.ncols-1:
+            # Get value from Result.xlsx
+            left_coverage = result_ws.cell(rowx=result_coverage_row, colx=result_col).value
+            right_coverage = result_ws.cell(rowx=result_coverage_row, colx=result_col+1).value
+            offset = result_ws.cell(rowx=result_offset_row, colx=result_col).value
+            thickness = result_ws.cell(rowx=result_thickness_row, colx=result_col).value
+            # Send value to report.xlsx
+            report_ws.cell(row=flex_row, column=report_cover_column).value = left_coverage
+            report_ws.cell(row=flex_row, column=report_cover_column+1).value = right_coverage
+            report_ws.cell(row=flex_row, column=thick_col).value = thickness
+            report_ws.cell(row=flex_row, column=off_col).value = offset
+            
+            # Loop command
+            result_col += 2
+            flex_row += 1
+
+        return import_name
+
+    def hotbar_import_picture(self, report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name):
+        b2b_pic_path, hotbar_pic_path = self.get_pic_folder()
+        b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
+        hotbar_pics = sorted(Path(hotbar_pic_path).iterdir(), key=os.path.getmtime)
+
+        if import_name == 'HOT BAR':
+            row_export = hotbar_pic_row
+        else:
+            row_export = bga_pic_row
+
+        print(row_export)
+        # Import Hot Bar Picture
+        COLUMN_INSERT = 1
+        for i in range(1, len(b2b_pics), 2):
+            if str(b2b_pics[i]).upper().endswith('JPG'):
+                # Get Picture
+                first_pic = b2b_pics[i-1]
+                second_pic = b2b_pics[i]
+                # Call add image
+                first_img = Image(first_pic)
+                second_img = Image(second_pic)
+
+                p2e = pixels_to_EMU
+                c2e = cm_to_EMU
+                # Assign picture size
+                HEIGHT = 50
+                WIDTH = 50
+                # Function calculate offset
+                cellh = lambda x: c2e((x * 49.77)/99)
+                cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                # Set Size and Postion
+                colloff1 = cellw(0.1)
+                colloff2 = cellw(1)
+                rowoffset = cellh(0.5)
+                first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=row_export, rowOff=rowoffset)
+                second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=row_export, rowOff=rowoffset)
+                size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                # Paste Image to cell
+                first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
+                report_ws.add_image(first_img)
+                second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
+                report_ws.add_image(second_img)
+                
+                # Prepare for next
+                COLUMN_INSERT += 1
+
+        # Import Connector Picture
+        COLUMN_INSERT = 1
+        print(con_pic_row)
+        for i in range(1, len(hotbar_pics), 2):
+            if str(hotbar_pics[i]).upper().endswith('JPG'):
+                # Get Picture
+                first_pic = hotbar_pics[i-1]
+                second_pic = hotbar_pics[i]
+                # Call add image
+                first_img = Image(first_pic)
+                second_img = Image(second_pic)
+
+                p2e = pixels_to_EMU
+                c2e = cm_to_EMU
+                # Assign picture size
+                HEIGHT = 50
+                WIDTH = 50
+                # Function calculate offset
+                cellh = lambda x: c2e((x * 49.77)/99)
+                cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                # Set Size and Postion
+                colloff1 = cellw(0.1)
+                colloff2 = cellw(1)
+                rowoffset = cellh(0.5)
+                first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=con_pic_row, rowOff=rowoffset)
+                second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=con_pic_row, rowOff=rowoffset)
+                size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                # Paste Image to cell
+                first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
+                report_ws.add_image(first_img)
+                second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
+                report_ws.add_image(second_img)
+                
+                # Prepare for next
+                COLUMN_INSERT += 1
+
+    def get_pic_folder(self):
+        soldermask_folder = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Solder mask coverage'
+
+        for pic_folder in os.listdir(soldermask_folder):
+            if 'B2B' in pic_folder.upper():
+                b2b_pic_path = os.path.join(soldermask_folder, pic_folder)
+            elif 'HOT' in pic_folder.upper() or 'BGA' in pic_folder.upper():
+                hotbar_pic_path = os.path.join(soldermask_folder, pic_folder)
+
+        return b2b_pic_path, hotbar_pic_path
 
     # ---------------------------------------------------- Hot Bar Page ---------------------------------------------------------
     def hotbar_document(self, report_ws, result_ws):
