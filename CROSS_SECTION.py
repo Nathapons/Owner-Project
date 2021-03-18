@@ -166,11 +166,11 @@ class CrossSection():
 
     # ------------------------------------------------ Solder Mask Page ---------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
-        flex_row, bga_pic_row, horbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
         # Import data to Document
         import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
         # Import picture to ducument
-        self.hotbar_import_picture(report_ws, bga_pic_row, horbar_pic_row, con_pic_row, import_name)
+        self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
 
     def solder_get_pasteposition(self, report_ws):
         report_row = 1
@@ -198,36 +198,37 @@ class CrossSection():
             elif detail == '1':
                 flex_row = report_row
             elif 'BGA' in detail:
-                bga_pic_row = report_row
+                bga_pic_row = report_row - 1
             elif 'HOT' in detail:
-                horbar_pic_row = report_row
+                hotbar_pic_row = report_row - 1
             elif 'CONNECTOR' in detail:
                 con_pic_row = report_row - 1
 
             # Loop command
             report_row += 1
 
-        return flex_row, bga_pic_row, horbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col
+        return flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col
 
     def hotbar_import_data(self, report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col):
         b2b_offset = result_ws.cell(rowx=6, colx=2).value
         b2b_coverage = result_ws.cell(rowx=7, colx=2).value
         b2b_thickness = result_ws.cell(rowx=8, colx=2).value
 
-        if (not b2b_offset) and (not b2b_coverage) and (not b2b_thickness):
-            # import hotbar to format
-            import_name = 'B2B/BGA'
-            result_offset_row = 13
-            result_coverage_row = 14
-            result_thickness_row = 15
-            report_cover_column = hotbar_col
-        else:
+        if (not b2b_offset) == False and (not b2b_coverage) == False and (not b2b_thickness) == False:
             # import B2B/BGA to format
-            import_name = 'HOT BAR'
+            import_name = 'B2B/BGA'
             result_offset_row = 6
             result_coverage_row = 7
             result_thickness_row = 8
             report_cover_column = bga_col
+        else:
+            # import hotbar to format
+            import_name = 'HOT BAR'
+            result_offset_row = 13
+            result_coverage_row = 14
+            result_thickness_row = 15
+            report_cover_column = hotbar_col
+
 
         result_col = 2
         while result_col <= result_ws.ncols-1:
@@ -248,18 +249,20 @@ class CrossSection():
 
         return import_name
 
+    def get_b2b_row_result(self, result_ws):
+        max_row = result_ws.nrows
+
     def hotbar_import_picture(self, report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name):
         b2b_pic_path, hotbar_pic_path = self.get_pic_folder()
         b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
         hotbar_pics = sorted(Path(hotbar_pic_path).iterdir(), key=os.path.getmtime)
 
-        if import_name == 'HOT BAR':
-            row_export = hotbar_pic_row
-        else:
+        if import_name == 'B2B/BGA':
             row_export = bga_pic_row
+        else:
+            row_export = hotbar_pic_row
 
-        print(row_export)
-        # Import Hot Bar Picture
+        # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
         for i in range(1, len(b2b_pics), 2):
             if str(b2b_pics[i]).upper().endswith('JPG'):
@@ -296,7 +299,6 @@ class CrossSection():
 
         # Import Connector Picture
         COLUMN_INSERT = 1
-        print(con_pic_row)
         for i in range(1, len(hotbar_pics), 2):
             if str(hotbar_pics[i]).upper().endswith('JPG'):
                 # Get Picture
