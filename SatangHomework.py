@@ -65,10 +65,13 @@ def delete_products():
     while product_name == '':
         product_name = input('Delete productname?: ')
 
-    with sqlite3.connect("Prosatang.sqlite") as con:
-        sql_cmd = f"delete from Employees where ProductName = '{product_name}'"
-        con.execute(sql_cmd)
-        print('Delete Complete')
+    try:
+        with sqlite3.connect("Prosatang.sqlite") as con:
+            sql_cmd = f"delete from Products where ProductName = '{product_name}'"
+            con.execute(sql_cmd)
+            print('Delete Complete')
+    except Exception:
+        print(f'Product {product_name} is not in Table')
 
 
 if __name__ == "__main__":
