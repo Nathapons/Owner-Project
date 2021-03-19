@@ -9,7 +9,7 @@ from openpyxl.drawing.spreadsheet_drawing import OneCellAnchor, AnchorMarker
 import xlrd
 from pathlib import Path
 import os
-
+import webbrowser
 
 class CrossSection():
     def __init__(self):
@@ -117,35 +117,41 @@ class CrossSection():
             report_sheets = report_wb.sheetnames
             for sheetname in report_sheets:
                 report_ws = report_wb[sheetname]
-                result = 'Update'
+                status = 'Not Import'
                 
                 if sheetname == "OQC":
                     pass
                 elif sheetname == 'Solder Mask':
-                    # print('Run')
                     result_ws = result_wb.sheet_by_name('Solder Mask Coverage')
-                    self.soldermask_document(report_ws, result_ws)
-                    pass
+                    status = self.soldermask_document(report_ws, result_ws)
                 elif sheetname == 'Hot bar':
                     result_ws = result_wb.sheet_by_name('hotbar ')
-                    self.hotbar_document(report_ws=report_ws, result_ws=result_ws)
-                    result = 'COMPLETE'
+                    status = self.hotbar_document(report_ws=report_ws, result_ws=result_ws)
                 elif sheetname == 'Addtion X-section and Thickness':
-                    pass
+                    result_ws = result_wb.sheet_by_name('X-section')
+                    self.addition_program(report_ws, result_ws)
                 elif sheetname == 'FAI':
-                    pass
+                    result_ws = result_wb.sheet_by_name('FAI')
+                    status = self.fai_program(report_ws, result_ws)
 
-                data = [sheetname, result]
+                data = [sheetname, status]
                 self.status_tree.insert('', 'end', value=data)
 
-            result_wb.release_resources()
-            report_wb.save(filename=f'Report_{self.lot_box.get()}.xlsx')
-            report_wb.close()
+            file_saveas = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Report_{self.lot_box.get()}.xlsx'
+            try:
+                result_wb.release_resources()
+                report_wb.save(filename=file_saveas)
+                report_wb.close()
 
-            msb.showinfo(title='Information', message='Complete')
+                # Ask user to open excel file
+                ask = msb.askyesno(title="Ask to user", message=f'คุณต้องการเปิดไฟล์ {os.path.basename(file_saveas)} หรือไม่?')
+                if ask:
+                    webbrowser.open(file_saveas)
+                else:
+                    msb.showinfo(title="Ask to User", message='Import Complete')
+            except Exception:
+                msb.showwarning(title='Alarm to user', message=f'กรุณาปิดไฟล์ {os.path.basename(file_saveas)} แล้วรันโปรแกรมอีกครั้ง!')
 
-        elif os.path.isfile(report_path):
-            pass
         else:
             msb.showwarning(message=f'ไม่มีไฟล์ที่ชื่อ \n {result_path}', title='Alarm To User')
 
@@ -161,16 +167,28 @@ class CrossSection():
         for member in self.status_tree.get_children():
             self.status_tree.delete(member)
 
+    # ------------------------------------------------ Cross Section Page ---------------------------------------------------------
     def oqc_document(self, report_ws, result_ws):
-        pass
+        try:
+            status = 'Complete'
+        except Exception:
+            status = 'Program Error!'
 
-    # ------------------------------------------------ Solder Mask Page ---------------------------------------------------------
+        return status
+
+    # ------------------------------------------------ Solder Mask Page -----------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
-        flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
-        # Import data to Document
-        import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
-        # Import picture to ducument
-        self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
+        try:
+            flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+            # Import data to Document
+            import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+            # Import picture to ducument
+            self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
+            status = 'COMPLETE'
+        except Exception:
+            status = 'Program Error!!'
+
+        return status
 
     def solder_get_pasteposition(self, report_ws):
         report_row = 1
@@ -228,7 +246,6 @@ class CrossSection():
             result_coverage_row = 14
             result_thickness_row = 15
             report_cover_column = hotbar_col
-
 
         result_col = 2
         while result_col <= result_ws.ncols-1:
@@ -333,7 +350,7 @@ class CrossSection():
                 COLUMN_INSERT += 1
 
     def get_pic_folder(self):
-        soldermask_folder = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Solder mask coverage'
+        soldermask_folder = self.get_link_soldermask_folder()
 
         for pic_folder in os.listdir(soldermask_folder):
             if 'B2B' in pic_folder.upper():
@@ -343,28 +360,42 @@ class CrossSection():
 
         return b2b_pic_path, hotbar_pic_path
 
+    def get_link_soldermask_folder(self):
+        folder_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}'
+        folder_list = os.listdir(folder_path)
+
+        for folder_name in folder_list:
+            if 'SOLDER' in folder_name.upper():
+                return os.path.join(folder_path, folder_name)
+
     # ---------------------------------------------------- Hot Bar Page ---------------------------------------------------------
     def hotbar_document(self, report_ws, result_ws):
-        report_row, soldera_col, solderb_col, solderbstar_col = self.get_horbar_row(report_ws=report_ws)
-        report_row += 1
-        result_row = 18
-
-        while result_ws.cell(rowx=result_row, colx=2).value != "":
-            # Receive Value in cell
-            solder_a = round(result_ws.cell(rowx=result_row, colx=2).value, 3)
-            solder_b = round(result_ws.cell(rowx=result_row, colx=3).value, 3)
-            solder_bstar = round(result_ws.cell(rowx=result_row, colx=4).value, 3)
-            # Send value to cell
-            report_ws.cell(row=report_row, column=soldera_col).value = solder_a
-            report_ws.cell(row=report_row, column=solderb_col).value = solder_b
-            report_ws.cell(row=report_row, column=solderbstar_col).value = solder_bstar
-
-            # Loop command
-            result_row += 1
+        try:
+            report_row, soldera_col, solderb_col, solderbstar_col = self.get_hotbar_row(report_ws=report_ws)
             report_row += 1
+            result_row = 17
 
+            while result_ws.cell(rowx=result_row, colx=2).value != "":
+                # Receive Value in cell
+                solder_a = round(result_ws.cell(rowx=result_row, colx=2).value, 3)
+                solder_b = round(result_ws.cell(rowx=result_row, colx=3).value, 3)
+                solder_bstar = round(result_ws.cell(rowx=result_row, colx=4).value, 3)
+                # Send value to cell
+                report_ws.cell(row=report_row, column=soldera_col).value = solder_a
+                report_ws.cell(row=report_row, column=solderb_col).value = solder_b
+                report_ws.cell(row=report_row, column=solderbstar_col).value = solder_bstar
 
-    def get_horbar_row(self, report_ws):
+                # Loop command
+                result_row += 1
+                report_row += 1
+
+            status = 'COMPLETE'
+        except Exception:
+            status = 'Program Error!'
+
+        return status
+
+    def get_hotbar_row(self, report_ws):
         report_row = 1
         column = 2
 
@@ -381,6 +412,125 @@ class CrossSection():
             column += 1
 
         return report_row, soldera_col, solderb_col, solderbstar_col
+    # ---------------------------------------------------- Addtion X-section and Thickness ---------------------------------------------------------
+    def addition_program(self, report_ws, result_ws):
+        result_col = 1
+        max_col = result_ws.ncols - 1
+
+        while result_col < max_col:
+            region_no = result_ws.cell(rowx=1, colx=result_col).value
+
+            if isinstance(region_no, float):
+                region_no = int(region_no)
+                row, col = self.get_addition_row(report_ws, region_no)
+                layer_dict = self.get_layer_result(result_ws, result_col)
+                self.import_addition_to_report(report_ws, layer_dict, row, col)
+
+            # Prepare for next column
+            result_col += 5
+
+    def get_addition_row(self, report_ws, region_no):
+        row = 1
+        col = 1
+        max_row = report_ws.max_row
+        max_col = report_ws.max_column + 1
+
+        while row <= max_row:
+            name = str(report_ws.cell(row=row, column=1).value).upper()
+            number = str(report_ws.cell(row=row+1, column=1).value)
+            
+            if name == 'REGION' and number == str(region_no):
+                for col in range(1, max_col):
+                    subdetail = report_ws.cell(row=row, column=col).value
+                    fill_row = row + 1
+                    if '#1' in subdetail:
+                        return fill_row, col
+
+            # Loop command
+            row += 1
+
+    def get_layer_result(self, result_ws, result_col):
+        layer_dict = {}
+        end_layer_col = result_col + 5
+        layer_row = 4
+        
+        for col in range(result_col, end_layer_col):
+            layer_no = result_ws.cell(rowx=2, colx=col).value
+
+            layer_result_list = []
+            while layer_row <= 12:
+                layer_result = result_ws.cell(rowx=layer_row, colx=col).value
+                layer_result_list.append(layer_result)
+
+                # Loop command
+                layer_row += 1
+            
+            # Prepare for next column
+            layer_dict[layer_no] = layer_result_list
+            layer_row = 4
+
+        return layer_dict
+
+    def import_addition_to_report(self, report_ws, layer_dict, start_row, col):
+        row = start_row
+
+        for layer_no in layer_dict:
+            layer_results = layer_dict[layer_no]
+
+            for layer_result in layer_results:
+                report_ws.cell(row=row, column=col).value = layer_result
+                row += 1
+            
+            # Reset row col to prepare paste next layer
+            row = start_row
+            col += 1
+
+    # ------------------------------------------------------------------ FAI -----------------------------------------------------------------------
+    def fai_program(self, report_ws, result_ws):
+        fai_length_list = self.get_data_from_result_ws(result_ws)
+        report_row = self.get_fai_row(report_ws)
+        self.import_fai_to_report(report_ws, fai_length_list, report_row)
+        status = 'COMPLETE'
+
+        # try:
+        #     fai_length_list = self.get_data_from_result_ws(result_ws)
+        #     report_row = self.get_fai_row(report_ws)
+        #     self.import_fai_to_report(fai_lenght_list, report_row)
+        # except Exception:
+        #     status = 'Program Error!'
+
+        return status
+
+    def get_data_from_result_ws(self, result_ws):
+        row = 24
+        fai_length_list = []
+
+        for col in range(1, 7):
+            fai_length = round(result_ws.cell(rowx=row, colx=col).value, 2)
+            fai_length_list.append(fai_length)
+
+        return fai_length_list
+
+    def get_fai_row(self, report_ws):
+        row = 1
+        max_row = report_ws.max_row
+
+        while row <= max_row:
+            detail = report_ws.cell(row=row, column=1).value
+            # Get Row Filled
+            if str(detail) == '1':
+                break
+
+            # Loop command
+            row += 1
+
+        return row
+
+    def import_fai_to_report(self, report_ws, fai_length_list, report_row):
+        for fai_length in fai_length_list:
+            report_ws.cell(row=report_row, column=2).value = fai_length
+            # Prepare for next row
+            report_row += 1
 
 
 # Setting to Run Program
