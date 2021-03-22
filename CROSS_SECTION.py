@@ -101,7 +101,8 @@ class CrossSection():
             self.program_overview()
     
     def program_overview(self):
-        result_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\{self.lot_box.get()}.xlsx'
+        self.lotno = str(self.lot_box.get())[:9]
+        result_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\{self.lotno}.xlsx'
         report_path = f'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report\Report_{self.product_box.get()}.xlsx'
 
         # Check file Exist in path?
@@ -129,7 +130,7 @@ class CrossSection():
                     status = self.hotbar_document(report_ws=report_ws, result_ws=result_ws)
                 elif sheetname == 'Addtion X-section and Thickness':
                     result_ws = result_wb.sheet_by_name('X-section')
-                    self.addition_program(report_ws, result_ws)
+                    status = self.addition_program(report_ws, result_ws)
                 elif sheetname == 'FAI':
                     result_ws = result_wb.sheet_by_name('FAI')
                     status = self.fai_program(report_ws, result_ws)
@@ -137,7 +138,7 @@ class CrossSection():
                 data = [sheetname, status]
                 self.status_tree.insert('', 'end', value=data)
 
-            file_saveas = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Report_{self.lot_box.get()}.xlsx'
+            file_saveas = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Report_{self.lotno}.xlsx'
             try:
                 result_wb.release_resources()
                 report_wb.save(filename=file_saveas)
@@ -422,30 +423,68 @@ class CrossSection():
 
             if isinstance(region_no, float):
                 region_no = int(region_no)
-                row, col = self.get_addition_row(report_ws, region_no)
+                filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
                 layer_dict = self.get_layer_result(result_ws, result_col)
-                self.import_addition_to_report(report_ws, layer_dict, row, col)
+                self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
+                self.import_addition_pic_to_report(report_ws, region_no, fillpic_row, fillpic_col)
 
             # Prepare for next column
             result_col += 5
 
-    def get_addition_row(self, report_ws, region_no):
+        status = 'COMPLETE'
+
+        # try: 
+        #     while result_col < max_col:
+        #         region_no = result_ws.cell(rowx=1, colx=result_col).value
+
+        #         if isinstance(region_no, float):
+        #             region_no = int(region_no)
+        #             filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
+        #             layer_dict = self.get_layer_result(result_ws, result_col)
+        #             self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
+        #             self.import_addition_pic_to_report(report_ws, fillpic_row, fillpic_col)
+
+        #         # Prepare for next column
+        #         result_col += 5
+
+        #     status = 'COMPLETE'
+        # except Exception:
+        #     status = 'Program Error!'
+
+        return status
+
+    def get_addition_position(self, report_ws, region_no):
         row = 1
-        col = 1
+        filldata_row = 1
+        filldata_col = 1
+        fillpic_row = 1
+        fillpic_col = 1
         max_row = report_ws.max_row
         max_col = report_ws.max_column + 1
 
         while row <= max_row:
-            name = str(report_ws.cell(row=row, column=1).value).upper()
-            number = str(report_ws.cell(row=row+1, column=1).value)
+            report_region1 = str(report_ws.cell(row=row, column=1).value).upper()
+            report_region_number1 = str(report_ws.cell(row=row+1, column=1).value)
+            report_region2 = str(report_ws.cell(row=row, column=2).value).upper()
+            report_region_number2 = str(report_ws.cell(row=row, column=3).value).upper()
             
-            if name == 'REGION' and number == str(region_no):
-                for col in range(1, max_col):
-                    subdetail = report_ws.cell(row=row, column=col).value
-                    fill_row = row + 1
-                    if '#1' in subdetail:
-                        return fill_row, col
+            if report_region1 == 'REGION' and report_region_number1 == str(region_no):
+                for filldata_col in range(1, max_col):
+                    subdetail = report_ws.cell(row=row, column=filldata_col).value
+                    filldata_row = row + 1
 
+                    if '#1' in subdetail:
+                        return filldata_row, filldata_col, fillpic_row, fillpic_col
+
+            elif report_region2 == 'REGION' and report_region_number2 == str(region_no):
+                fillpic_row = row
+
+                for fillpic_col in range(1, max_col):
+                    subdetail = report_ws.cell(row=row, column=fillpic_col).value
+                    if 'PICTURE' in str(subdetail).upper():
+                        fillpic_col -= 1
+                        break
+                
             # Loop command
             row += 1
 
@@ -471,33 +510,69 @@ class CrossSection():
 
         return layer_dict
 
-    def import_addition_to_report(self, report_ws, layer_dict, start_row, col):
-        row = start_row
+    def import_addition_data_to_report(self, report_ws, layer_dict, filldata_row, filldata_col):
+        row = filldata_row
 
         for layer_no in layer_dict:
             layer_results = layer_dict[layer_no]
 
             for layer_result in layer_results:
-                report_ws.cell(row=row, column=col).value = layer_result
+                report_ws.cell(row=row, column=filldata_col).value = layer_result
                 row += 1
             
             # Reset row col to prepare paste next layer
-            row = start_row
-            col += 1
+            row = filldata_row
+            filldata_col += 1
+
+    def import_addition_pic_to_report(self, report_ws, region_no, fillpic_row, fillpic_col):
+        addition_pic_path = self.get_addition_pic_path()
+        pic_group_name = 'X' + str(region_no)
+        picture_names = os.listdir(addition_pic_path)
+
+        for picture_name in picture_names:
+            picture_name_path = os.path.join(addition_pic_path, picture_name)
+
+            if picture_name_path.upper().endswith('.JPG') and pic_group_name in picture_name:
+                # Call add image
+                img = Image(picture_name_path)
+
+                p2e = pixels_to_EMU
+                c2e = cm_to_EMU
+                # Assign picture size
+                HEIGHT = 220
+                WIDTH = 250
+                # Function calculate offset
+                cellh = lambda x: c2e((x * 49.77)/99)
+                cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                # Set Size and Postion
+                col_offset = cellw(0.5)
+                row_offset = cellh(0.75)
+                first_marker = AnchorMarker(col=fillpic_col, colOff=col_offset, row=fillpic_row, rowOff=row_offset)
+                size = XDRPositiveSize2D(p2e(WIDTH), p2e(HEIGHT))
+                # Paste Image to cell
+                img.anchor = OneCellAnchor(_from=first_marker, ext=size)
+                report_ws.add_image(img)
+
+                # Prepare for next column
+                fillpic_col += 3
+
+    def get_addition_pic_path(self):
+        folder_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}'
+        folder_list = os.listdir(folder_path)
+
+        for folder_name in folder_list:
+            if  folder_name.upper().startswith('X'):
+                return os.path.join(folder_path, folder_name)
 
     # ------------------------------------------------------------------ FAI -----------------------------------------------------------------------
     def fai_program(self, report_ws, result_ws):
-        fai_length_list = self.get_data_from_result_ws(result_ws)
-        report_row = self.get_fai_row(report_ws)
-        self.import_fai_to_report(report_ws, fai_length_list, report_row)
-        status = 'COMPLETE'
-
-        # try:
-        #     fai_length_list = self.get_data_from_result_ws(result_ws)
-        #     report_row = self.get_fai_row(report_ws)
-        #     self.import_fai_to_report(fai_lenght_list, report_row)
-        # except Exception:
-        #     status = 'Program Error!'
+        try:
+            fai_length_list = self.get_data_from_result_ws(result_ws)
+            report_row = self.get_fai_row(report_ws)
+            self.import_fai_to_report(report_ws, fai_length_list, report_row)
+            status = 'COMPLETE'
+        except Exception:
+            status = 'Program Error!'
 
         return status
 
