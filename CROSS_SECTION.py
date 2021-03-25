@@ -2,6 +2,7 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox as msb
 import openpyxl as xl
+from openpyxl.styles import colors, Font
 from openpyxl.drawing.image import Image
 from openpyxl.drawing.xdr import XDRPoint2D, XDRPositiveSize2D
 from openpyxl.utils.units import pixels_to_EMU, cm_to_EMU
@@ -121,7 +122,9 @@ class CrossSection():
                 status = 'Not Import'
                 
                 if sheetname == "OQC":
-                    pass
+                    result_ws1 = result_wb.sheet_by_name('Cross Section Data')
+                    result_ws2 = result_wb.sheet_by_name('Solder Mask Coverage')
+                    status = self.oqc_document(report_ws, result_ws1, result_ws2)
                 elif sheetname == 'Solder Mask':
                     result_ws = result_wb.sheet_by_name('Solder Mask Coverage')
                     status = self.soldermask_document(report_ws, result_ws)
@@ -169,13 +172,273 @@ class CrossSection():
             self.status_tree.delete(member)
 
     # ------------------------------------------------ Cross Section Page ---------------------------------------------------------
-    def oqc_document(self, report_ws, result_ws):
+    def oqc_document(self, report_ws, result_ws1, result_ws2):
         try:
-            status = 'Complete'
-        except Exception:
-            status = 'Program Error!'
+            # Fill Cross Section For Stack up
+            stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+            stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+            self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+
+            # Fill Solder mask thickness and Min PTH
+            thickness_list = self.get_solder_mask_thickness(result_ws2)
+            min_pths = self.get_min_pth_copper_thickness(result_ws1)
+            conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+            self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+
+            # Fill OQC
+            self.get_cross_section(report_ws, result_ws1)
+
+            status = 'COMPLETE'
+        except FileNotFoundError:
+            status = 'Picture is mistake!'
 
         return status
+
+    def get_stack_up_data(self, result_ws1):
+        row = 4
+        stack1 = result_ws1.cell(rowx=row, colx=1).value
+        stacks1 = []
+        stacks2 = []
+        stacks3 = []
+        stacks4 = []
+
+        while isinstance(stack1, float):
+            stack2 = result_ws1.cell(rowx=row, colx=2).value
+            stack3 = result_ws1.cell(rowx=row, colx=3).value
+            stack4 = result_ws1.cell(rowx=row, colx=4).value
+            stacks1.append(stack1)
+            stacks2.append(stack2)
+            stacks3.append(stack3)
+            stacks4.append(stack4)
+
+            # Loop command
+            row += 1
+            stack1 = result_ws1.cell(rowx=row, colx=1).value
+
+        return stacks1, stacks2, stacks3, stacks4
+
+    def get_stack_up_row_col(self, report_ws):
+        row = 1
+        max_row = report_ws.max_row
+        max_col = report_ws.max_column
+
+        while row <= max_row:
+            detail1 = str(report_ws.cell(row=row, column=2).value)
+            if 'CONSTRUCT' in detail1.upper():
+                # ค้นหาคำว่า CPK ใน stackup
+                for stack_col in range(2, max_col):
+                    subdetail = str(report_ws.cell(row=row, column=stack_col).value).upper()
+                    if 'CPK' in subdetail:
+                        break
+
+                # ค้นหาชื่อ stack up ตัวแรกในคอลัมน์ B
+                for stack_row in range(row, row+20):
+                    subdetail = str(report_ws.cell(row=stack_row, column=3).value)
+                    if subdetail != 'None':
+                        return stack_row, stack_col+1
+
+            # Loop command
+            row += 1
+
+    def fill_stackup(self, report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col):
+        index = 0
+        max_index = len(stacks1) - 1
+
+
+        while index <= max_index:
+            report_ws.cell(row=stack_row, column=stack_col).value = stacks1[index]
+            report_ws.cell(row=stack_row, column=stack_col+1).value = stacks2[index]
+            report_ws.cell(row=stack_row, column=stack_col+2).value = stacks3[index]
+            report_ws.cell(row=stack_row, column=stack_col+3).value = stacks4[index]
+
+            # Loop command
+            index += 1
+            stack_row += 1
+
+    def get_solder_mask_thickness(self, result_ws2):
+        row = 0
+        max_row = result_ws2.nrows - 1
+        thickness_list = []
+
+        while row <= max_row:
+            subdetail = str(result_ws2.cell(rowx=row, colx=1).value)
+            thickness_result = str(result_ws2.cell(rowx=row, colx=2).value)
+
+            if subdetail.upper() == 'THICKNESS' and thickness_result != "":
+                for col in range(2, 12, 2):
+                    thickness = result_ws2.cell(rowx=row, colx=col).value
+                    thickness_list.append(thickness)
+
+            # Loop command
+            row += 1
+
+        return thickness_list
+
+    def get_min_pth_copper_thickness(self, result_ws1):
+        min_pths = []
+        row = 0
+        max_row = result_ws1.nrows - 1
+
+        while row <= max_row:
+            detail = str(result_ws1.cell(rowx=row, colx=3).value).upper()
+
+            if 'PTH' in detail:
+                for sub_row in range(row, row+15):
+                    subdetail = str(result_ws1.cell(rowx=sub_row, colx=0).value).upper()
+                    if 'AVE' in subdetail:
+                        min_pth1 = round(result_ws1.cell(rowx=sub_row, colx=2).value, 3)
+
+            elif 'OQC' in detail:
+                for sub_row in range(row, max_row+1):
+                    subdetail = str(result_ws1.cell(rowx=sub_row, colx=0).value).upper()
+                    if 'AVE' in subdetail:
+                        min_pth2 = round(result_ws1.cell(rowx=sub_row, colx=2).value, 3)
+                        min_pth3 = round(result_ws1.cell(rowx=sub_row, colx=3).value, 3)
+
+            # Loop command
+            row += 1
+
+        # Extend data to List
+        if min_pth1 != 7 and min_pth2 != 7 and min_pth3 != 7:
+            min_pths.extend((min_pth1, min_pth2, min_pth3))
+
+        return min_pths
+
+    def get_min_pth_row(self, report_ws):
+        row = 1
+        max_row = report_ws.max_row
+        conduct_row = 1
+        pth_row = 1
+        fill_col = 1
+        max_col = report_ws.max_column
+
+
+        while row <= max_row:
+            detail = str(report_ws.cell(row=row, column=2).value).upper()
+            if 'CONDUCTOR' in detail:
+                conduct_row = row
+            elif 'PTH' in detail:
+                pth_row = row
+
+            # Loop command
+            row += 1
+
+        while fill_col <= max_col:
+            detail = str(report_ws.cell(row=conduct_row - 1, column=fill_col).value)
+            if 'RESULT' in detail.upper():
+                break
+
+            # Loop command
+            fill_col += 1
+
+        return conduct_row, pth_row, fill_col
+
+    def fill_min_pth_data(self, report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col):
+        index = 0
+        detail = str(report_ws.cell(conduct_row-1, fill_col).value)
+
+        while index < 3:
+            thickness = thickness_list[index]
+
+            report_ws.cell(conduct_row, fill_col).value = thickness
+            if len(min_pths) != 0:
+                min_pth = min_pths[index]
+                report_ws.cell(pth_row, fill_col).value = min_pth
+                report_ws.cell(pth_row, fill_col).font = Font(color='00000000')
+
+            # Loop command
+            fill_col += 1
+            index += 1
+
+    def get_cross_section(self, report_ws, result_ws1):
+        cross_dict = {}
+        row = 0
+        max_row = 140
+
+        while row <= max_row:
+            zone = str(result_ws1.cell(rowx=row, colx=0).value).upper()
+            top = result_ws1.cell(rowx=row+1, colx=2).value
+            
+            if zone == 'ZONE' and top != "":
+                zone_no = result_ws1.cell(rowx=row, colx=1).value
+                zone_no_list = str(zone_no).split('-')
+                bvh_zone = '==>'.join(zone_no_list)
+
+                side_wall = result_ws1.cell(rowx=row+8, colx=2).value
+                bottom = result_ws1.cell(rowx=row+2, colx=2).value
+                adhesive = round(result_ws1.cell(rowx=row+9, colx=2).value, 2)
+                pic_path = self.get_picture_path(zone_no)
+
+                # Append value to dict
+                cross_dict = {'Side': side_wall,
+                              'Bottom': bottom, 
+                              'Surface': top, 
+                              'Etch': 'N/A', 
+                              'Adhesive': adhesive, 
+                              'Nickel': 'N/A',
+                              'Picture': pic_path}
+
+                fill_row = self.get_cross_section_row(report_ws, zone_no, bvh_zone)
+                self.fill_cross_section_data(report_ws, cross_dict, fill_row)
+
+            # Loop command
+            row += 1
+
+    def get_picture_path(self, zone_no):
+        pic_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\BVH\{zone_no}\{zone_no}.jpg'
+        return pic_path
+
+    def get_cross_section_row(self, report_ws, zone_no, bvh_zone):
+        row = 2
+        max_row = report_ws.max_row
+
+        while row <= max_row:
+            detail_a = str(report_ws.cell(row=row, column=1).value)
+            cross_area_detail = str(report_ws.cell(row=row-1, column=1).value)
+            bvh_detail = str(report_ws.cell(row=row-1, column=2).value)
+
+            if detail_a == 'S/N' and (cross_area_detail == zone_no or bvh_zone in bvh_detail):
+                return row
+
+            # Loop command
+            row += 1
+
+    def fill_cross_section_data(self, report_ws, cross_dict, fill_row):
+        col = 1
+        max_col = report_ws.max_column
+
+        if str(fill_row).upper() != 'NONE':
+            for key in cross_dict:
+
+                for col in range(1, 16):
+                    if key.upper() in str(report_ws.cell(row=fill_row, column=col).value).upper():
+                        fill_col = col
+                        break
+
+                if key != 'Picture':
+                    report_ws.cell(row=fill_row+1, column=fill_col).value = cross_dict[key]
+                else:
+                    pic = cross_dict['Picture']
+                    # Call add image
+                    img = Image(pic)
+
+                    p2e = pixels_to_EMU
+                    c2e = cm_to_EMU
+                    # Assign picture size
+                    HEIGHT = 100
+                    WIDTH = 100
+                    # Function calculate offset
+                    cellh = lambda x: c2e((x * 49.77)/99)
+                    cellw = lambda x: c2e((x * (5.65-1.71))/10)
+                    # Set Size and Postion
+                    colloff1 = cellw(0.5)
+                    rowoffset = cellh(0.3)
+                    marlker = AnchorMarker(col=fill_col, colOff=colloff1, row=fill_row, rowOff=rowoffset)
+                    size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                    # Paste Image to cell
+                    img.anchor = OneCellAnchor(_from=marlker, ext=size)
+                    report_ws.add_image(img)
+                
 
     # ------------------------------------------------ Solder Mask Page -----------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
@@ -186,8 +449,8 @@ class CrossSection():
             # Import picture to ducument
             self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
             status = 'COMPLETE'
-        except Exception:
-            status = 'Program Error!!'
+        except FileNotFoundError:
+            status = 'Picture Error!!'
 
         return status
 
