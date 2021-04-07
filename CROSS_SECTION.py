@@ -16,6 +16,7 @@ class CrossSection():
     def __init__(self):
         # self.link = "\\\\10.17.73.53\\ORT_Result\\03.Data Cross Section\\1.Cross section\\1.For Per Day"
         self.link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\1.For Per Day'
+        self.master_link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report'
         self.topics_font = ('Arial', 22, 'bold')
         self.detail_font = ('Arial', 16)
         
@@ -104,7 +105,7 @@ class CrossSection():
     def program_overview(self):
         self.lotno = str(self.lot_box.get())[:9]
         result_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\{self.lotno}.xlsx'
-        report_path = f'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report\Report_{self.product_box.get()}.xlsx'
+        report_path = f'{self.master_link}\Report_{self.product_box.get()}.xlsx'
 
         # Check file Exist in path?
         if os.path.isfile(result_path) and os.path.isfile(report_path):
@@ -190,7 +191,9 @@ class CrossSection():
 
             status = 'COMPLETE'
         except FileNotFoundError:
-            status = 'Picture is mistake!'
+            status = 'Picture Error!!'
+        except Exception:
+            status = 'Program Error!!'
 
         return status
 
@@ -429,10 +432,10 @@ class CrossSection():
                     WIDTH = 100
                     # Function calculate offset
                     cellh = lambda x: c2e((x * 49.77)/99)
-                    cellw = lambda x: c2e((x * (5.65-1.71))/10)
+                    cellw = lambda x: c2e((x * (18.65-1.71))/10)
                     # Set Size and Postion
                     colloff1 = cellw(0.5)
-                    rowoffset = cellh(0.3)
+                    rowoffset = cellh(0.5)
                     marlker = AnchorMarker(col=fill_col, colOff=colloff1, row=fill_row, rowOff=rowoffset)
                     size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
                     # Paste Image to cell
@@ -451,6 +454,8 @@ class CrossSection():
             status = 'COMPLETE'
         except FileNotFoundError:
             status = 'Picture Error!!'
+        except Exception:
+            status = 'Program Error!!'
 
         return status
 
@@ -535,8 +540,9 @@ class CrossSection():
 
     def hotbar_import_picture(self, report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name):
         b2b_pic_path, hotbar_pic_path = self.get_pic_folder()
+        b2b_pic_path, solder_pic_path = self.get_pic_folder()
         b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
-        hotbar_pics = sorted(Path(hotbar_pic_path).iterdir(), key=os.path.getmtime)
+        solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
 
         if import_name == 'B2B/BGA':
             row_export = bga_pic_row
@@ -545,11 +551,11 @@ class CrossSection():
 
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
-        for i in range(1, len(b2b_pics), 2):
-            if str(b2b_pics[i]).upper().endswith('JPG'):
+        for i in range(1, len(solder_pics), 2):
+            if str(solder_pics[i]).upper().endswith('JPG'):
                 # Get Picture
-                first_pic = b2b_pics[i-1]
-                second_pic = b2b_pics[i]
+                first_pic = solder_pics[i-1]
+                second_pic = solder_pics[i]
                 # Call add image
                 first_img = Image(first_pic)
                 second_img = Image(second_pic)
@@ -580,11 +586,11 @@ class CrossSection():
 
         # Import Connector Picture
         COLUMN_INSERT = 1
-        for i in range(1, len(hotbar_pics), 2):
-            if str(hotbar_pics[i]).upper().endswith('JPG'):
+        for i in range(1, len(b2b_pics), 2):
+            if str(b2b_pics[i]).upper().endswith('JPG'):
                 # Get Picture
-                first_pic = hotbar_pics[i-1]
-                second_pic = hotbar_pics[i]
+                first_pic = b2b_pics[i-1]
+                second_pic = b2b_pics[i]
                 # Call add image
                 first_img = Image(first_pic)
                 second_img = Image(second_pic)
@@ -619,10 +625,12 @@ class CrossSection():
         for pic_folder in os.listdir(soldermask_folder):
             if 'B2B' in pic_folder.upper():
                 b2b_pic_path = os.path.join(soldermask_folder, pic_folder)
-            elif 'HOT' in pic_folder.upper() or 'BGA' in pic_folder.upper():
-                hotbar_pic_path = os.path.join(soldermask_folder, pic_folder)
+            elif 'HOT' in pic_folder.upper():
+                solder_pic_path = os.path.join(soldermask_folder, pic_folder)
+            elif 'BGA' in pic_folder.upper():
+                solder_pic_path = os.path.join(soldermask_folder, pic_folder)
 
-        return b2b_pic_path, hotbar_pic_path
+        return b2b_pic_path, solder_pic_path
 
     def get_link_soldermask_folder(self):
         folder_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}'
@@ -676,43 +684,45 @@ class CrossSection():
             column += 1
 
         return report_row, soldera_col, solderb_col, solderbstar_col
-    # ---------------------------------------------------- Addtion X-section and Thickness ---------------------------------------------------------
+    # ---------------------------------------------------- Addtion X-section and Thickness -----------------------------------------------
     def addition_program(self, report_ws, result_ws):
         result_col = 1
         max_col = result_ws.ncols - 1
 
-        while result_col < max_col:
-            region_no = result_ws.cell(rowx=1, colx=result_col).value
+        # while result_col < max_col:
+        #     region_no = result_ws.cell(rowx=1, colx=result_col).value
 
-            if isinstance(region_no, float):
-                region_no = int(region_no)
-                filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
-                layer_dict = self.get_layer_result(result_ws, result_col)
-                self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
-                self.import_addition_pic_to_report(report_ws, region_no, fillpic_row, fillpic_col)
+        #     if isinstance(region_no, float):
+        #         region_no = int(region_no)
+        #         filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
+        #         layer_dict = self.get_layer_result(result_ws, result_col)
+        #         self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
+        #         self.import_addition_pic_to_report(report_ws, region_no, fillpic_row, fillpic_col)
 
-            # Prepare for next column
-            result_col += 5
+        #     # Prepare for next column
+        #     result_col += 5
 
-        status = 'COMPLETE'
+        # status = 'COMPLETE'
 
-        # try: 
-        #     while result_col < max_col:
-        #         region_no = result_ws.cell(rowx=1, colx=result_col).value
+        try: 
+            while result_col < max_col:
+                region_no = result_ws.cell(rowx=1, colx=result_col).value
 
-        #         if isinstance(region_no, float):
-        #             region_no = int(region_no)
-        #             filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
-        #             layer_dict = self.get_layer_result(result_ws, result_col)
-        #             self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
-        #             self.import_addition_pic_to_report(report_ws, fillpic_row, fillpic_col)
+                if isinstance(region_no, float):
+                    region_no = int(region_no)
+                    filldata_row, filldata_col, fillpic_row, fillpic_col = self.get_addition_position(report_ws, region_no)
+                    layer_dict = self.get_layer_result(result_ws, result_col)
+                    self.import_addition_data_to_report(report_ws, layer_dict, filldata_row, filldata_col)
+                    self.import_addition_pic_to_report(report_ws, region_no, fillpic_row, fillpic_col)
 
-        #         # Prepare for next column
-        #         result_col += 5
+                # Prepare for next column
+                result_col += 5
 
-        #     status = 'COMPLETE'
-        # except Exception:
-        #     status = 'Program Error!'
+            status = 'COMPLETE'
+        except FileNotFoundError:
+            status = 'Picture Error!!'
+        except Exception:
+            status = 'Program Error!!'
 
         return status
 
