@@ -174,6 +174,9 @@ class CrossSection():
 
     # ------------------------------------------------ Cross Section Page ---------------------------------------------------------
     def oqc_document(self, report_ws, result_ws1, result_ws2):
+        # result_ws1 => Cross Section Data
+        # result_ws2 => Solder Mask Coverage
+
         try:
             # Fill Cross Section For Stack up
             stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
@@ -187,7 +190,7 @@ class CrossSection():
             self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
 
             # Fill OQC
-            self.get_cross_section(report_ws, result_ws1)
+            self.cross_section_for_via_and_pth(report_ws, result_ws1)
 
             status = 'COMPLETE'
         except FileNotFoundError:
@@ -353,7 +356,7 @@ class CrossSection():
             fill_col += 1
             index += 1
 
-    def get_cross_section(self, report_ws, result_ws1):
+    def cross_section_for_via_and_pth(self, report_ws, result_ws1):
         cross_dict = {}
         row = 0
         max_row = 140
@@ -367,9 +370,7 @@ class CrossSection():
                 zone_no_list = str(zone_no).split('-')
                 bvh_zone = '==>'.join(zone_no_list)
 
-                side_wall = result_ws1.cell(rowx=row+8, colx=2).value
-                bottom = result_ws1.cell(rowx=row+2, colx=2).value
-                adhesive = round(result_ws1.cell(rowx=row+9, colx=2).value, 2)
+                bottom, side_wall, adhesive = self.get_cross_section_data(result_ws1=result_ws1, cross_row=row)
                 pic_path = self.get_picture_path(zone_no)
 
                 # Append value to dict
@@ -386,6 +387,21 @@ class CrossSection():
 
             # Loop command
             row += 1
+
+    def get_cross_section_data(self, result_ws1, cross_row):
+        for row in range(cross_row, cross_row + 10):
+            detail1 = str(result_ws1.cell(rowx=row, colx=0).value).upper()
+            detail2 = str(result_ws1.cell(rowx=row, colx=1).value).upper()
+            result = result_ws1.cell(rowx=row, colx=2).value
+
+            if detail2 == 'BOTTOM':
+                bottom = result
+            elif detail2 == 'SIDE WALL':
+                side_wall = result
+            elif 'MAXI' in detail2:
+                adhesive = result
+        
+        return bottom, side_wall, adhesive
 
     def get_picture_path(self, zone_no):
         pic_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\BVH\{zone_no}\{zone_no}.jpg'
@@ -533,21 +549,13 @@ class CrossSection():
             result_col += 2
             flex_row += 1
 
-        return import_name
-
     def get_b2b_row_result(self, result_ws):
         max_row = result_ws.nrows
 
     def hotbar_import_picture(self, report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name):
-        b2b_pic_path, hotbar_pic_path = self.get_pic_folder()
         b2b_pic_path, solder_pic_path = self.get_pic_folder()
         b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
         solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
-
-        if import_name == 'B2B/BGA':
-            row_export = bga_pic_row
-        else:
-            row_export = hotbar_pic_row
 
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
