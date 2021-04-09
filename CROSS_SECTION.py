@@ -14,9 +14,10 @@ import webbrowser
 
 class CrossSection():
     def __init__(self):
-        # self.link = "\\\\10.17.73.53\\ORT_Result\\03.Data Cross Section\\1.Cross section\\1.For Per Day"
-        self.link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\1.For Per Day'
-        self.master_link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report'
+        self.link = "\\\\10.17.73.53\ORT_Result\\03.Data Cross Section\\1.Cross section\\1.For Per Day Rev1"
+        self.master_link = "\\\\10.17.73.53\\ORT_Result\\03.Data Cross Section\\00.Master report"
+        # self.link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\1.For Per Day'
+        # self.master_link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report'
         self.topics_font = ('Arial', 22, 'bold')
         self.detail_font = ('Arial', 16)
         
@@ -31,7 +32,7 @@ class CrossSection():
 
         # PROGRAM PROPERTIES
         root.title("CROSS SECTION PROGRAM")
-        root.iconbitmap('fujikura_logo.ico')
+        # root.iconbitmap('fujikura_logo.ico')
         root.geometry(f'{WIDTH}x{HEIGHT}+{center_width}+{center_height}')
         root.config(bg='white')
         root.resizable(0, 0)
@@ -176,6 +177,21 @@ class CrossSection():
     def oqc_document(self, report_ws, result_ws1, result_ws2):
         # result_ws1 => Cross Section Data
         # result_ws2 => Solder Mask Coverage
+
+        # # Fill Cross Section For Stack up
+        # stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+        # stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+        # self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+
+        # # Fill Solder mask thickness and Min PTH
+        # thickness_list = self.get_solder_mask_thickness(result_ws2)
+        # min_pths = self.get_min_pth_copper_thickness(result_ws1)
+        # conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+        # self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+
+        # # Fill OQC
+        # self.cross_section_for_via_and_pth(report_ws, result_ws1)
+        # status = 'OK'
 
         try:
             # Fill Cross Section For Stack up
@@ -389,6 +405,11 @@ class CrossSection():
             row += 1
 
     def get_cross_section_data(self, result_ws1, cross_row):
+        # Assignment Value
+        bottom = 0
+        side_wall = 0
+        adhesive = 0
+
         for row in range(cross_row, cross_row + 10):
             detail1 = str(result_ws1.cell(rowx=row, colx=0).value).upper()
             detail2 = str(result_ws1.cell(rowx=row, colx=1).value).upper()
@@ -396,9 +417,9 @@ class CrossSection():
 
             if detail2 == 'BOTTOM':
                 bottom = result
-            elif detail2 == 'SIDE WALL':
+            elif 'WALL' in detail2:
                 side_wall = result
-            elif 'MAXI' in detail2:
+            elif 'MAX' in detail1:
                 adhesive = result
         
         return bottom, side_wall, adhesive
@@ -461,17 +482,24 @@ class CrossSection():
 
     # ------------------------------------------------ Solder Mask Page -----------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
-        try:
-            flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
-            # Import data to Document
-            import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
-            # Import picture to ducument
-            self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
-            status = 'COMPLETE'
-        except FileNotFoundError:
-            status = 'Picture Error!!'
-        except Exception:
-            status = 'Program Error!!'
+        flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        # Import data to Document
+        import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+        # Import picture to ducument
+        self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
+        status = 'COMPLETE'
+
+        # try:
+        #     flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        #     # Import data to Document
+        #     import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+        #     # Import picture to ducument
+        #     self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
+        #     status = 'COMPLETE'
+        # except FileNotFoundError:
+        #     status = 'Picture Error!!'
+        # except Exception:
+        #     status = 'Program Error!!'
 
         return status
 
@@ -518,8 +546,8 @@ class CrossSection():
         b2b_thickness = result_ws.cell(rowx=8, colx=2).value
 
         if (not b2b_offset) == False and (not b2b_coverage) == False and (not b2b_thickness) == False:
-            # import B2B/BGA to format
-            import_name = 'B2B/BGA'
+            # import BGA to format
+            import_name = 'BGA'
             result_offset_row = 6
             result_coverage_row = 7
             result_thickness_row = 8
@@ -556,6 +584,11 @@ class CrossSection():
         b2b_pic_path, solder_pic_path = self.get_pic_folder()
         b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
         solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
+
+        if import_name == 'BGA':
+            row_export = bga_pic_row
+        else:
+            row_export = hotbar_pic_row
 
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
