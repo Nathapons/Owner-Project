@@ -16,13 +16,14 @@ class SpcIqi():
         for material_folder in material_folders:
             if 'SPC' not in material_folder:
                 material_folder_path = path.join(self.iqi_server, material_folder)
-                year_folders = listdir(material_folder_path)
+                if path.isdir(material_folder_path):
+                    year_folders = listdir(material_folder_path)
 
-                for year_folder in year_folders:
-                    if year_folder == current_year:
-                        print(year_folder, type(year_folder))
-                        year_folder_path = path.join(material_folder_path, year_folder)
-                        item_code_folders = listdir(year_folder_path)
+                    for year_folder in year_folders:
+                        if year_folder == current_year:
+                            print(year_folder, type(year_folder))
+                            year_folder_path = path.join(material_folder_path, year_folder)
+                            item_code_folders = listdir(year_folder_path)
 
 
 
