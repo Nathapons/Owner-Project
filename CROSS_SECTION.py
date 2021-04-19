@@ -97,7 +97,6 @@ class CrossSection():
             self.lot_box['values'] = folder_list
 
     def checkUserFilled(self):
-        # print(self.product_box.get(), self.lot_box.get())
         if (not self.product_box.get()) and (not self.lot_box.get()):
             msb.showwarning(title='Alarm to User', message='คุณยังกรอกข้อมูลไม่ครบถ้วน')
         else:
@@ -123,20 +122,20 @@ class CrossSection():
                 report_ws = report_wb[sheetname]
                 status = 'Not Import'
                 
-                if sheetname == "OQC":
+                if "OQC" in sheetname:
                     result_ws1 = result_wb.sheet_by_name('Cross Section Data')
                     result_ws2 = result_wb.sheet_by_name('Solder Mask Coverage')
                     status = self.oqc_document(report_ws, result_ws1, result_ws2)
-                elif sheetname == 'Solder Mask':
+                elif 'Solder Mask' in sheetname:
                     result_ws = result_wb.sheet_by_name('Solder Mask Coverage')
                     status = self.soldermask_document(report_ws, result_ws)
-                elif sheetname == 'Hot bar':
+                elif 'Hot bar' in sheetname:
                     result_ws = result_wb.sheet_by_name('hotbar ')
                     status = self.hotbar_document(report_ws=report_ws, result_ws=result_ws)
-                elif sheetname == 'Addtion X-section and Thickness':
+                elif 'Addtion X-section and Thickness' in sheetname:
                     result_ws = result_wb.sheet_by_name('X-section')
                     status = self.addition_program(report_ws, result_ws)
-                elif sheetname == 'FAI':
+                elif 'FAI' in sheetname:
                     result_ws = result_wb.sheet_by_name('FAI')
                     status = self.fai_program(report_ws, result_ws)
 
@@ -147,6 +146,7 @@ class CrossSection():
             try:
                 result_wb.release_resources()
                 report_wb.save(filename=file_saveas)
+                # report_wb.save(filename=f'Report_{self.lotno}.xlsx')
                 report_wb.close()
 
                 # Ask user to open excel file
@@ -173,7 +173,7 @@ class CrossSection():
         for member in self.status_tree.get_children():
             self.status_tree.delete(member)
 
-    # ------------------------------------------------ Cross Section Page ---------------------------------------------------------
+    # ------------------------------------------------ OQC Page ---------------------------------------------------------
     def oqc_document(self, report_ws, result_ws1, result_ws2):
         # result_ws1 => Cross Section Data
         # result_ws2 => Solder Mask Coverage
@@ -191,7 +191,7 @@ class CrossSection():
 
         # # Fill OQC
         # self.cross_section_for_via_and_pth(report_ws, result_ws1)
-        # status = 'OK'
+        # status = 'COMPLETE'
 
         try:
             # Fill Cross Section For Stack up
@@ -300,6 +300,9 @@ class CrossSection():
         min_pths = []
         row = 0
         max_row = result_ws1.nrows - 1
+        min_pth1 = 7
+        min_pth2 = 7
+        min_pth3 = 7
 
         while row <= max_row:
             detail = str(result_ws1.cell(rowx=row, colx=3).value).upper()
@@ -375,30 +378,39 @@ class CrossSection():
     def cross_section_for_via_and_pth(self, report_ws, result_ws1):
         cross_dict = {}
         row = 0
-        max_row = 140
+        max_row = result_ws1.nrows - 2
 
         while row <= max_row:
             zone = str(result_ws1.cell(rowx=row, colx=0).value).upper()
-            top = result_ws1.cell(rowx=row+1, colx=2).value
+            top = str(result_ws1.cell(rowx=row+1, colx=2).value)
             
             if zone == 'ZONE' and top != "":
                 zone_no = result_ws1.cell(rowx=row, colx=1).value
+                via_hole_name = str(result_ws1.cell(rowx=row-1, colx=1).value).upper()
+
+                if via_hole_name == 'BVH':
+                    via_hole_name = 'BVH'
+                    last_pic_name = 'BVH'
+                else:
+                    via_hole_name = 'HOLE'
+                    last_pic_name = 'PTH'
+
                 zone_no_list = str(zone_no).split('-')
                 bvh_zone = '==>'.join(zone_no_list)
 
                 bottom, side_wall, adhesive = self.get_cross_section_data(result_ws1=result_ws1, cross_row=row)
-                pic_path = self.get_picture_path(zone_no)
+                pic_path = self.get_picture_path(zone_no, last_pic_name)
 
                 # Append value to dict
                 cross_dict = {'Side': side_wall,
                               'Bottom': bottom, 
                               'Surface': top, 
                               'Etch': 'N/A', 
-                              'Adhesive': adhesive, 
+                              'Adhesive': round(adhesive, 3), 
                               'Nickel': 'N/A',
                               'Picture': pic_path}
 
-                fill_row = self.get_cross_section_row(report_ws, zone_no, bvh_zone)
+                fill_row = self.get_cross_section_row(report_ws, zone_no, bvh_zone, via_hole_name)
                 self.fill_cross_section_data(report_ws, cross_dict, fill_row)
 
             # Loop command
@@ -411,24 +423,31 @@ class CrossSection():
         adhesive = 0
 
         for row in range(cross_row, cross_row + 10):
-            detail1 = str(result_ws1.cell(rowx=row, colx=0).value).upper()
-            detail2 = str(result_ws1.cell(rowx=row, colx=1).value).upper()
-            result = result_ws1.cell(rowx=row, colx=2).value
+            if row < result_ws1.nrows:
+                detail1 = str(result_ws1.cell(rowx=row, colx=0).value).upper()
+                detail2 = str(result_ws1.cell(rowx=row, colx=1).value).upper()
+                result = result_ws1.cell(rowx=row, colx=2).value
 
-            if detail2 == 'BOTTOM':
-                bottom = result
-            elif 'WALL' in detail2:
-                side_wall = result
-            elif 'MAX' in detail1:
-                adhesive = result
+                if detail2 == 'BOTTOM':
+                    bottom = result
+                elif 'WALL' in detail2:
+                    side_wall = result
+                elif 'MAX' in detail1:
+                    adhesive = result
         
         return bottom, side_wall, adhesive
 
-    def get_picture_path(self, zone_no):
-        pic_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\BVH\{zone_no}\{zone_no}.jpg'
-        return pic_path
+    def get_picture_path(self, zone_no, last_pic_name):
+        pic_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\BVH\{zone_no} {last_pic_name}'
+        file_list = os.listdir(pic_path)
 
-    def get_cross_section_row(self, report_ws, zone_no, bvh_zone):
+        for pic_name in file_list:
+            if pic_name.upper().endswith('JPG'):
+                pic_name_path = os.path.join(pic_path, pic_name)
+                
+                return pic_name_path
+
+    def get_cross_section_row(self, report_ws, zone_no, bvh_zone, via_hole_name):
         row = 2
         max_row = report_ws.max_row
 
@@ -436,8 +455,11 @@ class CrossSection():
             detail_a = str(report_ws.cell(row=row, column=1).value)
             cross_area_detail = str(report_ws.cell(row=row-1, column=1).value)
             bvh_detail = str(report_ws.cell(row=row-1, column=2).value)
+            side_wall_value = str(report_ws.cell(row=row+1, column=2).value)
 
-            if detail_a == 'S/N' and (cross_area_detail == zone_no or bvh_zone in bvh_detail):
+            if detail_a == 'S/N' and (cross_area_detail == zone_no or bvh_zone in bvh_detail) and side_wall_value == 'None':
+                return row
+            elif detail_a == 'S/N' and via_hole_name in bvh_detail.upper() and side_wall_value == 'None':
                 return row
 
             # Loop command
@@ -458,48 +480,47 @@ class CrossSection():
                 if key != 'Picture':
                     report_ws.cell(row=fill_row+1, column=fill_col).value = cross_dict[key]
                 else:
-                    pic = cross_dict['Picture']
-                    # Call add image
-                    img = Image(pic)
+                    pic = str(cross_dict['Picture'])
+                    if pic.upper().endswith('.JPG'):
+                        # Call add image
+                        img = Image(pic)
 
-                    p2e = pixels_to_EMU
-                    c2e = cm_to_EMU
-                    # Assign picture size
-                    HEIGHT = 100
-                    WIDTH = 100
-                    # Function calculate offset
-                    cellh = lambda x: c2e((x * 49.77)/99)
-                    cellw = lambda x: c2e((x * (18.65-1.71))/10)
-                    # Set Size and Postion
-                    colloff1 = cellw(0.5)
-                    rowoffset = cellh(0.5)
-                    marlker = AnchorMarker(col=fill_col, colOff=colloff1, row=fill_row, rowOff=rowoffset)
-                    size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
-                    # Paste Image to cell
-                    img.anchor = OneCellAnchor(_from=marlker, ext=size)
-                    report_ws.add_image(img)
+                        p2e = pixels_to_EMU
+                        c2e = cm_to_EMU
+                        # Assign picture size
+                        HEIGHT = 100
+                        WIDTH = 100
+                        # Function calculate offset
+                        cellh = lambda x: c2e((x * 49.77)/99)
+                        cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                        # Set Size and Postion
+                        colloff1 = cellw(0.5)
+                        rowoffset = cellh(0.5)
+                        marlker = AnchorMarker(col=fill_col, colOff=colloff1, row=fill_row, rowOff=rowoffset)
+                        size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                        # Paste Image to cell
+                        img.anchor = OneCellAnchor(_from=marlker, ext=size)
+                        report_ws.add_image(img)
                 
 
     # ------------------------------------------------ Solder Mask Page -----------------------------------------------------------
     def soldermask_document(self, report_ws, result_ws):
-        flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
-        # Import data to Document
-        import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
-        # Import picture to ducument
-        self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
-        status = 'COMPLETE'
+        # flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+        # # Import data to Document
+        # import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+        # # Import picture to ducument
+        # self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
 
-        # try:
-        #     flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
-        #     # Import data to Document
-        #     import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
-        #     # Import picture to ducument
-        #     self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
-        #     status = 'COMPLETE'
+        try:
+            flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
+            # Import data to Document
+            import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
+            # Import picture to ducument
+            status = self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
         # except FileNotFoundError:
         #     status = 'Picture Error!!'
-        # except Exception:
-        #     status = 'Program Error!!'
+        except Exception:
+            status = 'โปรแกรมมีปัญหา!!'
 
         return status
 
@@ -577,91 +598,105 @@ class CrossSection():
             result_col += 2
             flex_row += 1
 
-    def get_b2b_row_result(self, result_ws):
-        max_row = result_ws.nrows
+        return import_name
 
     def hotbar_import_picture(self, report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name):
         b2b_pic_path, solder_pic_path = self.get_pic_folder()
-        b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
-        solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
 
         if import_name == 'BGA':
             row_export = bga_pic_row
         else:
             row_export = hotbar_pic_row
 
+        if b2b_pic_path == '' and solder_pic_path == '':
+            status = 'ไม่มีโฟลเดอร์รูปภาพใน Solder mask'
+        elif b2b_pic_path == '':
+            status = 'ไม่มีโฟลเดอร์ B2B ใน Solder mask'
+        elif solder_pic_path == '':
+            status = f'ไม่มีโฟลเดอร์ {import_name} ใน Solder mask'
+        else:
+            status = 'COMPLETE'
+
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
-        for i in range(1, len(solder_pics), 2):
-            if str(solder_pics[i]).upper().endswith('JPG'):
-                # Get Picture
-                first_pic = solder_pics[i-1]
-                second_pic = solder_pics[i]
-                # Call add image
-                first_img = Image(first_pic)
-                second_img = Image(second_pic)
+        if solder_pic_path != "":
+            solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
+            for i in range(1, len(solder_pics), 2):
+                if str(solder_pics[i]).upper().endswith('JPG'):
+                    # Get Picture
+                    first_pic = solder_pics[i-1]
+                    second_pic = solder_pics[i]
+                    # Call add image
+                    first_img = Image(first_pic)
+                    second_img = Image(second_pic)
 
-                p2e = pixels_to_EMU
-                c2e = cm_to_EMU
-                # Assign picture size
-                HEIGHT = 50
-                WIDTH = 50
-                # Function calculate offset
-                cellh = lambda x: c2e((x * 49.77)/99)
-                cellw = lambda x: c2e((x * (18.65-1.71))/10)
-                # Set Size and Postion
-                colloff1 = cellw(0.1)
-                colloff2 = cellw(1)
-                rowoffset = cellh(0.5)
-                first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=row_export, rowOff=rowoffset)
-                second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=row_export, rowOff=rowoffset)
-                size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
-                # Paste Image to cell
-                first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
-                report_ws.add_image(first_img)
-                second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
-                report_ws.add_image(second_img)
-                
-                # Prepare for next
-                COLUMN_INSERT += 1
+                    p2e = pixels_to_EMU
+                    c2e = cm_to_EMU
+                    # Assign picture size
+                    HEIGHT = 50
+                    WIDTH = 50
+                    # Function calculate offset
+                    cellh = lambda x: c2e((x * 49.77)/99)
+                    cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                    # Set Size and Postion
+                    colloff1 = cellw(0.1)
+                    colloff2 = cellw(1)
+                    rowoffset = cellh(0.5)
+                    first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=row_export, rowOff=rowoffset)
+                    second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=row_export, rowOff=rowoffset)
+                    size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                    # Paste Image to cell
+                    first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
+                    report_ws.add_image(first_img)
+                    second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
+                    report_ws.add_image(second_img)
+                    
+                    # Prepare for next
+                    COLUMN_INSERT += 1
 
         # Import Connector Picture
         COLUMN_INSERT = 1
-        for i in range(1, len(b2b_pics), 2):
-            if str(b2b_pics[i]).upper().endswith('JPG'):
-                # Get Picture
-                first_pic = b2b_pics[i-1]
-                second_pic = b2b_pics[i]
-                # Call add image
-                first_img = Image(first_pic)
-                second_img = Image(second_pic)
+        if b2b_pic_path != "":
+            b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
+            for i in range(1, len(b2b_pics), 2):
+                if str(b2b_pics[i]).upper().endswith('JPG'):
+                    # Get Picture
+                    first_pic = b2b_pics[i-1]
+                    second_pic = b2b_pics[i]
+                    # Call add image
+                    first_img = Image(first_pic)
+                    second_img = Image(second_pic)
 
-                p2e = pixels_to_EMU
-                c2e = cm_to_EMU
-                # Assign picture size
-                HEIGHT = 50
-                WIDTH = 50
-                # Function calculate offset
-                cellh = lambda x: c2e((x * 49.77)/99)
-                cellw = lambda x: c2e((x * (18.65-1.71))/10)
-                # Set Size and Postion
-                colloff1 = cellw(0.1)
-                colloff2 = cellw(1)
-                rowoffset = cellh(0.5)
-                first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=con_pic_row, rowOff=rowoffset)
-                second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=con_pic_row, rowOff=rowoffset)
-                size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
-                # Paste Image to cell
-                first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
-                report_ws.add_image(first_img)
-                second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
-                report_ws.add_image(second_img)
-                
-                # Prepare for next
-                COLUMN_INSERT += 1
+                    p2e = pixels_to_EMU
+                    c2e = cm_to_EMU
+                    # Assign picture size
+                    HEIGHT = 50
+                    WIDTH = 50
+                    # Function calculate offset
+                    cellh = lambda x: c2e((x * 49.77)/99)
+                    cellw = lambda x: c2e((x * (18.65-1.71))/10)
+                    # Set Size and Postion
+                    colloff1 = cellw(0.1)
+                    colloff2 = cellw(1)
+                    rowoffset = cellh(0.5)
+                    first_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff1, row=con_pic_row, rowOff=rowoffset)
+                    second_marker = AnchorMarker(col=COLUMN_INSERT, colOff=colloff2, row=con_pic_row, rowOff=rowoffset)
+                    size = XDRPositiveSize2D(p2e(HEIGHT), p2e(WIDTH))
+                    # Paste Image to cell
+                    first_img.anchor = OneCellAnchor(_from=first_marker, ext=size)
+                    report_ws.add_image(first_img)
+                    second_img.anchor = OneCellAnchor(_from=second_marker, ext=size)
+                    report_ws.add_image(second_img)
+                    
+                    # Prepare for next
+                    COLUMN_INSERT += 1
+
+        return status
 
     def get_pic_folder(self):
         soldermask_folder = self.get_link_soldermask_folder()
+        solder_pic_path = ''
+        b2b_pic_path = ''
 
         for pic_folder in os.listdir(soldermask_folder):
             if 'B2B' in pic_folder.upper():
@@ -690,13 +725,18 @@ class CrossSection():
 
             while result_ws.cell(rowx=result_row, colx=2).value != "":
                 # Receive Value in cell
-                solder_a = round(result_ws.cell(rowx=result_row, colx=2).value, 3)
-                solder_b = round(result_ws.cell(rowx=result_row, colx=3).value, 3)
-                solder_bstar = round(result_ws.cell(rowx=result_row, colx=4).value, 3)
+                solder_a = result_ws.cell(rowx=result_row, colx=2).value
+                solder_b = result_ws.cell(rowx=result_row, colx=3).value
+                solder_bstar = result_ws.cell(rowx=result_row, colx=4).value
                 # Send value to cell
-                report_ws.cell(row=report_row, column=soldera_col).value = solder_a
-                report_ws.cell(row=report_row, column=solderb_col).value = solder_b
-                report_ws.cell(row=report_row, column=solderbstar_col).value = solder_bstar
+                if str(solder_a) != 'None':
+                    report_ws.cell(row=report_row, column=soldera_col).value = round(solder_a, 3)
+
+                if str(solder_b) != 'None':    
+                    report_ws.cell(row=report_row, column=solderb_col).value = round(solder_b, 3)
+
+                if str(solder_bstar) != 'None':
+                    report_ws.cell(row=report_row, column=solderbstar_col).value = round(solder_bstar, 3)
 
                 # Loop command
                 result_row += 1
@@ -878,7 +918,7 @@ class CrossSection():
             if  folder_name.upper().startswith('X'):
                 return os.path.join(folder_path, folder_name)
 
-    # ------------------------------------------------------------------ FAI -----------------------------------------------------------------------
+    # ------------------------------------------------------------------ FAI -------------------------------------------------------------------
     def fai_program(self, report_ws, result_ws):
         try:
             fai_length_list = self.get_data_from_result_ws(result_ws)
