@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter import ttk
+from tkinter.tix import *
 from tkinter import messagebox as msb
 import sqlite3
 import openpyxl as xl
@@ -16,6 +17,7 @@ class SpcIqi():
         self.detail_font = ('Arial', 16)
         self.entry_width = 15
         self.combobox_width = 13
+        
 
     def spec_datatable(self):
         with sqlite3.connect('\\\\ta1d170506\\IQI ONLY\\21.Upload to system\\0.SPC\Database\IQI.DB') as con:
@@ -66,6 +68,7 @@ class SpcIqi():
         self.root.withdraw()
 
         self.control_window = Toplevel()
+        tip = Balloon(self.control_window)
         WIDTH = 1100
         HEIGHT = 500
         screen_width = self.control_window.winfo_screenwidth()
@@ -97,6 +100,16 @@ class SpcIqi():
         self.clx = ttk.Entry(second_frame, font=self.detail_font, width=self.entry_width)
         lclx_label = Label(second_frame, text='LCL:', font=self.detail_font)
         self.lclx = ttk.Entry(second_frame, font=self.detail_font, width=self.entry_width)
+
+        # ToolTip
+        tip.bind_widget(self.material, balloonmsg='กรุณาเลือกข้อมูลในลิสต์')
+        tip.bind_widget(self.method, balloonmsg='กรุณาเลือกข้อมูลในลิสต์')
+        tip.bind_widget(self.uclx, balloonmsg='กรุณากรอกเป็นตัวเลข')
+        tip.bind_widget(self.clx, balloonmsg='กรุณากรอกเป็นตัวเลข')
+        tip.bind_widget(self.lclx, balloonmsg='กรุณากรอกเป็นตัวเลข')
+        tip.bind_widget(self.usl, balloonmsg='กรุณากรอกเป็นตัวเลข')
+        tip.bind_widget(self.target, balloonmsg='กรุณากรอกเป็นตัวเลข')
+        tip.bind_widget(self.lsl, balloonmsg='กรุณากรอกเป็นตัวเลข')
         
         headers = ['ID', 'MATERIAL', 'METHOD', 'USL', 'TARGET', 'LSL', 'UCL', 'CL', 'LCL', 'CREATED_ON']
         self.table_tree = ttk.Treeview(big_frame, column=headers, show='headings', height=17)
@@ -109,7 +122,7 @@ class SpcIqi():
             if header in ['MATERIAL', 'METHOD', 'CREATED_ON']:
                 col_width = 120
             self.table_tree.column(header, anchor='center', width=col_width, minwidth=0)
-            
+
         self.table_tree.bind('<Double-1>', self.delete_table)
         insert_button = Button(big_frame, text='Add Data', font=self.detail_font, width=10, bg='#ff6699', command=self.put_control_limit)
         display_frame = Frame(big_frame)
@@ -136,6 +149,7 @@ class SpcIqi():
         self.clx.grid(row=6, column=1, pady=5)
         lclx_label.grid(row=7, column=0, pady=5)
         self.lclx.grid(row=7, column=1, pady=5)
+        
         
         self.table_tree.grid(row=1, column=1, padx=5)
         insert_button.grid(row=2, column=0, pady=10)
