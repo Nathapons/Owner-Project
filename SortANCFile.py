@@ -7,15 +7,20 @@ class UpdateTestReport():
     def __init__(self):
         self.nidech_file_path = "\\\\10.17.73.53\\ORT_Result\\37.OST\\R2-40-131"
         self.yamaha_file_path = "\\\\10.17.73.53\\ORT_Result\\37.OST\\W-40-112"
-        self.master_file_location = "\\\\10.17.78.169\\Main_DATA\\00.Record status ORT\\ORT record update start 19 Apr.xlsx"
+        self.master_file_path = "\\\\10.17.78.169\\Main_DATA\\00.Record status ORT"
+        self.item_test_error_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\ITEM TEST ERROR'
+        self.barcode_error_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\BARCODE ERROR'
 
     def sort_anc_program(self):
-        sheet_names = self.get_all_sheets()
-        table_list = self.get_table_list(sheet_names=sheet_names)
+        for excel_file in listdir(self.master_file_path):
+            if 'ORT' in excel_file.upper():
+                master_file_location = path.join(self.master_file_path, excel_file)
+                sheet_names = self.get_all_sheets()
+                table_list = self.get_table_list(sheet_names=sheet_names)
         self.get_filenames(table_list=table_list)
 
-    def get_all_sheets(self):
-        with pd.ExcelFile(self.master_file_location) as xl:
+    def get_all_sheets(self, master_file_location):
+        with pd.ExcelFile(master_file_location) as xl:
             sheet_names = xl.sheet_names
             del sheet_names[len(sheet_names) - 1]
             xl.close()
@@ -33,7 +38,7 @@ class UpdateTestReport():
             for row in range(max_row):
                 barcode = str(df['S/N'][row])
                 product_name = str(df['P/D name'][row])
-                lotno = str(df['Lot no.'][row])
+                lotno = str(df['lot no. for OST'][row])
                 item_test = str(df['Item test'][row])
 
                 row = [barcode, sheet_name, product_name, lotno, item_test]
@@ -47,26 +52,27 @@ class UpdateTestReport():
         for excel_file in listdir(self.nidech_file_path):
             if "_" in excel_file:
                 barcode = excel_file.split("_")[0]
-                self.exist_in_table_list(barcode, table_list, excel_file)
+                if len(barcode) == 20:
+                    self.exist_in_table_list(barcode, table_list, excel_file)
 
-        print('W-40-112')
-        for excel_file in listdir(self.yamaha_file_path):
-            if "_" in excel_file:
-                barcode = excel_file.split("_")[0]
-                self.exist_in_table_list(barcode, table_list, excel_file)
+        # print('W-40-112')
+        # for excel_file in listdir(self.yamaha_file_path):
+        #     if "_" in excel_file:
+        #         barcode = excel_file.split("_")[0]
+        #         self.exist_in_table_list(barcode, table_list, excel_file)
         
     def exist_in_table_list(self, barcode, table_list, excel_file):
-        item_set = set()
+        item_list = []
 
         for row in table_list:
             barcode_in_row = row[0]
             item_test = row[4]
-            if barcode in barcode_in_row:
-                item_set.add(item_test)
+            if (barcode in barcode_in_row) and (row not in item_list):
+                item_list.append(row)
 
-        item_list = list(item_set)
         if len(item_list) != 0:
-            print(f'{excel_file} {barcode}/{item_list[0]}')
+            for item in item_list:
+                print(f'{excel_file}/ {barcode}/ {item[0]}/ {item[1]} / {item[2]} / {item[3]} / {item[4]}')
 
     
 if __name__ == '__main__':

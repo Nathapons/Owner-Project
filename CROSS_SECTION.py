@@ -432,7 +432,7 @@ class CrossSection():
                     bottom = result
                 elif 'WALL' in detail2:
                     side_wall = result
-                elif 'MAX' in detail1:
+                elif 'ETCH' in detail2:
                     adhesive = result
         
         return bottom, side_wall, adhesive

@@ -126,6 +126,7 @@ class SpcIqi():
         self.table_tree.bind('<Double-1>', self.delete_table)
         insert_button = Button(big_frame, text='Add Data', font=self.detail_font, width=10, bg='#ff6699', command=self.put_control_limit)
         display_frame = Frame(big_frame)
+        print_button = Button(display_frame, text='Print Report', font=self.detail_font, width=20, bg='#ffcc66', command='')
         get_button = Button(display_frame, text='Display Control Limit', font=self.detail_font, width=20, bg='#ffcc66', command=self.get_control_limit)
         self.check_bool = IntVar()
         delete_cb = Checkbutton(display_frame, text='Delete Data', font=self.detail_font, variable=self.check_bool, onvalue=1, offvalue=0)
@@ -230,6 +231,8 @@ class SpcIqi():
 
                 msb.showinfo(title='Information', message=f'ทำการลบข้อมูลเรียบร้อยที่ id={control_limits_id}')
 
+    def print_report(self):
+        pass
 
     def import_spc_report(self):
         self.root.withdraw()
