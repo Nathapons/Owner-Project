@@ -920,25 +920,35 @@ class CrossSection():
 
     # ------------------------------------------------------------------ FAI -------------------------------------------------------------------
     def fai_program(self, report_ws, result_ws):
-        try:
-            fai_length_list = self.get_data_from_result_ws(result_ws)
-            report_row = self.get_fai_row(report_ws)
-            self.import_fai_to_report(report_ws, fai_length_list, report_row)
-            status = 'COMPLETE'
-        except Exception:
-            status = 'Program Error!'
+        fai_table = self.get_data_from_result_ws(result_ws)
+        report_row = self.get_fai_row(report_ws)
+        self.import_fai_to_report(report_ws, fai_table, report_row)
+        status = 'COMPLETE'
+        # try:
+        #     fai_length_list = self.get_data_from_result_ws(result_ws)
+        #     report_row = self.get_fai_row(report_ws)
+        #     self.import_fai_to_report(report_ws, fai_table, report_row)
+        #     status = 'COMPLETE'
+        # except Exception:
+        #     status = 'Program Error!'
 
         return status
 
     def get_data_from_result_ws(self, result_ws):
         row = 24
-        fai_length_list = []
+        fai_table = []
 
-        for col in range(1, 7):
-            fai_length = round(result_ws.cell(rowx=row, colx=col).value, 2)
-            fai_length_list.append(fai_length)
+        while row <= 26:
+            fai_row = []
+            if result_ws.cell(rowx=row, colx=1).value != "":
+                for col in range(1, 7):
+                    fai_length = round(result_ws.cell(rowx=row, colx=col).value, 2)
+                    fai_row.append(fai_length)
+                
+            fai_table.append(fai_row)
+            row += 1
 
-        return fai_length_list
+        return fai_table
 
     def get_fai_row(self, report_ws):
         row = 1
@@ -955,11 +965,18 @@ class CrossSection():
 
         return row
 
-    def import_fai_to_report(self, report_ws, fai_length_list, report_row):
-        for fai_length in fai_length_list:
-            report_ws.cell(row=report_row, column=2).value = fai_length
-            # Prepare for next row
-            report_row += 1
+    def import_fai_to_report(self, report_ws, fai_table, report_row):
+        col = 2
+
+        for fai_row in fai_table:
+            row = report_row
+
+            if len(fai_row) != 0:
+                for fai_value in fai_row:
+                    report_ws.cell(row=row, column=2).value = fai_value
+                    row += 1
+
+            col += 1
 
 
 # Setting to Run Program

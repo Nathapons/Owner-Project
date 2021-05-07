@@ -1,0 +1,11 @@
+# Folder File
+/.vscode
+/logs
+/dist
+/build
+/__pycache__
+
+# Other file
+.fujikura_logo.ico
+*.spec
+logs/xvba_debug.log
