@@ -14,7 +14,7 @@ import webbrowser
 
 class CrossSection():
     def __init__(self):
-        self.link = "\\\\10.17.73.53\ORT_Result\\03.Data Cross Section\\1.Cross section\\1.For Per Day Rev1"
+        self.link = "\\\\10.17.73.53\ORT_Result\\03.Data Cross Section\\1.Cross section\\1.For Per Day"
         self.master_link = "\\\\10.17.73.53\\ORT_Result\\03.Data Cross Section\\00.Master report"
         # self.link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\1.For Per Day'
         # self.master_link = 'D:\\Nathapon\\0.My work\\01.IoT\\06.VBA\\06.CROSS_SECTION\\Master Report'
@@ -84,8 +84,11 @@ class CrossSection():
 
     def product_box_click(self, event):
         self.lot_box.set("")
-        self.product_box['values'] = os.listdir(self.link)
+        sort_list = sorted(Path(self.link).iterdir(), key=os.path.getmtime, reverse=True)
+        folder_list = [os.path.basename(path) for path in sort_list]
+        self.product_box['values'] = folder_list
 
+            
     def lotno_click(self, event):
         product_select = self.product_box.get()
 
@@ -93,7 +96,8 @@ class CrossSection():
             msb.showwarning(title='Alarm to User', message='กรุณากรอกข้อมูลที่ช่อง Product')
         else:
             new_path = f'{os.path.join(self.link, product_select)}\วัดแล้ว'
-            folder_list = os.listdir(new_path)
+            sort_list = sorted(Path(new_path).iterdir(), key=os.path.getmtime, reverse=True)
+            folder_list = [os.path.basename(path) for path in sort_list]
             self.lot_box['values'] = folder_list
 
     def checkUserFilled(self):
@@ -478,7 +482,10 @@ class CrossSection():
                         break
 
                 if key != 'Picture':
-                    report_ws.cell(row=fill_row+1, column=fill_col).value = cross_dict[key]
+                    if cross_dict[key] != 'N/A':
+                        report_ws.cell(row=fill_row+1, column=fill_col).value = float(cross_dict[key])
+                    else:
+                        report_ws.cell(row=fill_row+1, column=fill_col).value = cross_dict[key]
                 else:
                     pic = str(cross_dict['Picture'])
                     if pic.upper().endswith('.JPG'):
