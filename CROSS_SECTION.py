@@ -84,21 +84,20 @@ class CrossSection():
 
     def product_box_click(self, event):
         self.lot_box.set("")
-        sort_list = sorted(Path(self.link).iterdir(), key=os.path.getmtime, reverse=True)
-        folder_list = [os.path.basename(path) for path in sort_list]
-        self.product_box['values'] = folder_list
+        self.product_box['values'] = os.listdir(self.link)
 
-            
     def lotno_click(self, event):
         product_select = self.product_box.get()
 
         if not product_select:
             msb.showwarning(title='Alarm to User', message='กรุณากรอกข้อมูลที่ช่อง Product')
         else:
-            new_path = f'{os.path.join(self.link, product_select)}\วัดแล้ว'
-            sort_list = sorted(Path(new_path).iterdir(), key=os.path.getmtime, reverse=True)
-            folder_list = [os.path.basename(path) for path in sort_list]
-            self.lot_box['values'] = folder_list
+            new_path = f'{os.path.join(self.link, product_select)}\รอ Run'
+
+            if len(os.listdir(new_path)) > 0:
+                self.lot_box['values'] = os.listdir(new_path)
+            else:
+                msb.showwarning(title='แจ้งเตือนไปยังผู้ใช้', message=f'ไม่มีโฟลเดอร์ที่ชื่อ รอ Run ใน {product_select}')
 
     def checkUserFilled(self):
         if (not self.product_box.get()) and (not self.lot_box.get()):
@@ -108,7 +107,7 @@ class CrossSection():
     
     def program_overview(self):
         self.lotno = str(self.lot_box.get())[:9]
-        result_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\{self.lotno}.xlsx'
+        result_path = f'{self.link}\{self.product_box.get()}\รอ Run\{self.lot_box.get()}\{self.lotno}.xlsx'
         report_path = f'{self.master_link}\Report_{self.product_box.get()}.xlsx'
 
         # Check file Exist in path?
@@ -146,7 +145,7 @@ class CrossSection():
                 data = [sheetname, status]
                 self.status_tree.insert('', 'end', value=data)
 
-            file_saveas = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\Report_{self.lotno}.xlsx'
+            file_saveas = f'{self.link}\{self.product_box.get()}\รอ Run\{self.lot_box.get()}\Report_{self.lotno}.xlsx'
             try:
                 result_wb.release_resources()
                 report_wb.save(filename=file_saveas)
@@ -442,7 +441,7 @@ class CrossSection():
         return bottom, side_wall, adhesive
 
     def get_picture_path(self, zone_no, last_pic_name):
-        pic_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}\BVH\{zone_no} {last_pic_name}'
+        pic_path = f'{self.link}\{self.product_box.get()}\รอ Run\{self.lot_box.get()}\BVH\{zone_no} {last_pic_name}'
         file_list = os.listdir(pic_path)
 
         for pic_name in file_list:
@@ -517,6 +516,7 @@ class CrossSection():
         # import_name = self.hotbar_import_data(report_ws, result_ws, flex_row, hotbar_col, bga_col, thick_col, off_col)
         # # Import picture to ducument
         # self.hotbar_import_picture(report_ws, bga_pic_row, hotbar_pic_row, con_pic_row, import_name)
+        # status = 'OK'
 
         try:
             flex_row, bga_pic_row, hotbar_pic_row, con_pic_row, hotbar_col, bga_col, thick_col, off_col = self.solder_get_pasteposition(report_ws=report_ws)
@@ -628,8 +628,12 @@ class CrossSection():
         COLUMN_INSERT = 1
         if solder_pic_path != "":
             solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
+            for pic in solder_pics:
+                if not str(pic).upper().endswith('JPG'):
+                    solder_pics.remove(pic)
+
             for i in range(1, len(solder_pics), 2):
-                if str(solder_pics[i]).upper().endswith('JPG'):
+                if str(solder_pics[i]).upper().endswith('JPG') and str(solder_pics[i-1]).upper().endswith('JPG'):
                     # Get Picture
                     first_pic = solder_pics[i-1]
                     second_pic = solder_pics[i]
@@ -665,8 +669,12 @@ class CrossSection():
         COLUMN_INSERT = 1
         if b2b_pic_path != "":
             b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
+            for pic in b2b_pics:
+                if not str(pic).upper().endswith('JPG'):
+                    b2b_pics.remove(pic)
+
             for i in range(1, len(b2b_pics), 2):
-                if str(b2b_pics[i]).upper().endswith('JPG'):
+                if str(b2b_pics[i]).upper().endswith('JPG') and str(solder_pics[i-1]).upper().endswith('JPG'):
                     # Get Picture
                     first_pic = b2b_pics[i-1]
                     second_pic = b2b_pics[i]
@@ -716,7 +724,7 @@ class CrossSection():
         return b2b_pic_path, solder_pic_path
 
     def get_link_soldermask_folder(self):
-        folder_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}'
+        folder_path = f'{self.link}\{self.product_box.get()}\รอ Run\{self.lot_box.get()}'
         folder_list = os.listdir(folder_path)
 
         for folder_name in folder_list:
@@ -918,7 +926,7 @@ class CrossSection():
                 fillpic_col += 3
 
     def get_addition_pic_path(self):
-        folder_path = f'{self.link}\{self.product_box.get()}\วัดแล้ว\{self.lot_box.get()}'
+        folder_path = f'{self.link}\{self.product_box.get()}\รอ Run\{self.lot_box.get()}'
         folder_list = os.listdir(folder_path)
 
         for folder_name in folder_list:
