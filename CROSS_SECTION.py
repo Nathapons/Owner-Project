@@ -308,7 +308,7 @@ class CrossSection():
         min_pth3 = 7
 
         while row <= max_row:
-            detail = str(result_ws1.cell(rowx=row, colx=3).value).upper()
+            detail = str(result_ws1.cell(rowx=row, colx=1).value).upper()
 
             if 'PTH' in detail:
                 for sub_row in range(row, row+15):
@@ -329,7 +329,7 @@ class CrossSection():
         # Extend data to List
         if min_pth1 != 7 and min_pth2 != 7 and min_pth3 != 7:
             min_pths.extend((min_pth1, min_pth2, min_pth3))
-
+            
         return min_pths
 
     def get_min_pth_row(self, report_ws):
@@ -409,7 +409,7 @@ class CrossSection():
                               'Bottom': bottom, 
                               'Surface': top, 
                               'Etch': 'N/A', 
-                              'Adhesive': round(adhesive, 3), 
+                              'Adhesive': adhesive, 
                               'Nickel': 'N/A',
                               'Picture': pic_path}
 
@@ -425,7 +425,7 @@ class CrossSection():
         side_wall = 0
         adhesive = 0
 
-        for row in range(cross_row, cross_row + 10):
+        for row in range(cross_row, cross_row + 11):
             if row < result_ws1.nrows:
                 detail1 = str(result_ws1.cell(rowx=row, colx=0).value).upper()
                 detail2 = str(result_ws1.cell(rowx=row, colx=1).value).upper()
@@ -615,15 +615,16 @@ class CrossSection():
         else:
             row_export = hotbar_pic_row
 
-        if b2b_pic_path == '' and solder_pic_path == '':
-            status = 'ไม่มีโฟลเดอร์รูปภาพใน Solder mask'
-        elif b2b_pic_path == '':
-            status = 'ไม่มีโฟลเดอร์ B2B ใน Solder mask'
-        elif solder_pic_path == '':
-            status = f'ไม่มีโฟลเดอร์ {import_name} ใน Solder mask'
-        else:
-            status = 'COMPLETE'
-
+        # if b2b_pic_path == '' and solder_pic_path == '':
+        #     status = 'ไม่มีโฟลเดอร์รูปภาพใน Solder mask'
+        # elif b2b_pic_path == '':
+        #     status = 'ไม่มีโฟลเดอร์ B2B ใน Solder mask'
+        # elif solder_pic_path == '':
+        #     status = f'ไม่มีโฟลเดอร์ {import_name} ใน Solder mask'
+        # else:
+        #     status = 'COMPLETE'
+        
+        status = 'COMPLETE'
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
         if solder_pic_path != "":
@@ -738,11 +739,12 @@ class CrossSection():
             report_row += 1
             result_row = 17
 
-            while result_ws.cell(rowx=result_row, colx=2).value != "":
+            while str(result_ws.cell(rowx=result_row, colx=2).value) != "0.0":
                 # Receive Value in cell
                 solder_a = result_ws.cell(rowx=result_row, colx=2).value
                 solder_b = result_ws.cell(rowx=result_row, colx=3).value
                 solder_bstar = result_ws.cell(rowx=result_row, colx=4).value
+
                 # Send value to cell
                 if str(solder_a) != 'None':
                     report_ws.cell(row=report_row, column=soldera_col).value = round(solder_a, 3)
