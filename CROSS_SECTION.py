@@ -182,40 +182,40 @@ class CrossSection():
         # result_ws2 => Solder Mask Coverage
 
         # # Fill Cross Section For Stack up
-        # stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
-        # stack_row, stack_col = self.get_stack_up_row_col(report_ws)
-        # self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+        stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+        stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+        self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
 
-        # # Fill Solder mask thickness and Min PTH
-        # thickness_list = self.get_solder_mask_thickness(result_ws2)
-        # min_pths = self.get_min_pth_copper_thickness(result_ws1)
-        # conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
-        # self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+        # Fill Solder mask thickness and Min PTH
+        thickness_list = self.get_solder_mask_thickness(result_ws2)
+        min_pths = self.get_min_pth_copper_thickness(result_ws1)
+        conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+        self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
 
-        # # Fill OQC
-        # self.cross_section_for_via_and_pth(report_ws, result_ws1)
-        # status = 'COMPLETE'
+        # Fill OQC
+        self.cross_section_for_via_and_pth(report_ws, result_ws1)
+        status = 'COMPLETE'
 
-        try:
-            # Fill Cross Section For Stack up
-            stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
-            stack_row, stack_col = self.get_stack_up_row_col(report_ws)
-            self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+        # try:
+        #     # Fill Cross Section For Stack up
+        #     stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+        #     stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+        #     self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
 
-            # Fill Solder mask thickness and Min PTH
-            thickness_list = self.get_solder_mask_thickness(result_ws2)
-            min_pths = self.get_min_pth_copper_thickness(result_ws1)
-            conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
-            self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+        #     # Fill Solder mask thickness and Min PTH
+        #     thickness_list = self.get_solder_mask_thickness(result_ws2)
+        #     min_pths = self.get_min_pth_copper_thickness(result_ws1)
+        #     conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+        #     self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
 
-            # Fill OQC
-            self.cross_section_for_via_and_pth(report_ws, result_ws1)
+        #     # Fill OQC
+        #     self.cross_section_for_via_and_pth(report_ws, result_ws1)
 
-            status = 'COMPLETE'
-        except FileNotFoundError:
-            status = 'Picture Error!!'
-        except Exception:
-            status = 'Program Error!!'
+        #     status = 'COMPLETE'
+        # except FileNotFoundError:
+        #     status = 'Picture Error!!'
+        # except Exception:
+        #     status = 'Program Error!!'
 
         return status
 
@@ -313,13 +313,13 @@ class CrossSection():
             if 'PTH' in detail:
                 for sub_row in range(row, row+15):
                     subdetail = str(result_ws1.cell(rowx=sub_row, colx=0).value).upper()
-                    if 'AVE' in subdetail:
+                    if 'AVE' in subdetail and (not result_ws1.cell(rowx=sub_row, colx=2).value) == False:
                         min_pth1 = round(result_ws1.cell(rowx=sub_row, colx=2).value, 3)
 
             elif 'OQC' in detail:
                 for sub_row in range(row, max_row+1):
                     subdetail = str(result_ws1.cell(rowx=sub_row, colx=0).value).upper()
-                    if 'AVE' in subdetail:
+                    if 'AVE' in subdetail and (not result_ws1.cell(rowx=sub_row, colx=2).value) == False:
                         min_pth2 = round(result_ws1.cell(rowx=sub_row, colx=2).value, 3)
                         min_pth3 = round(result_ws1.cell(rowx=sub_row, colx=3).value, 3)
 
@@ -738,8 +738,9 @@ class CrossSection():
             report_row, soldera_col, solderb_col, solderbstar_col = self.get_hotbar_row(report_ws=report_ws)
             report_row += 1
             result_row = 17
+            total_paste = 1
 
-            while str(result_ws.cell(rowx=result_row, colx=2).value) != "0.0":
+            while total_paste <= 20:
                 # Receive Value in cell
                 solder_a = result_ws.cell(rowx=result_row, colx=2).value
                 solder_b = result_ws.cell(rowx=result_row, colx=3).value
@@ -758,6 +759,7 @@ class CrossSection():
                 # Loop command
                 result_row += 1
                 report_row += 1
+                total_paste += 1
 
             status = 'COMPLETE'
         except Exception:
