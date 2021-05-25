@@ -72,9 +72,10 @@ class SortAncFileSystem():
 
         if len(category_list) > 0:
             measure_list = list({row[3] for row in category_list})
-            print(f'{barcode_no} // {measure_list}')
             if len(measure_list) == 1:
-                pass
+                last_index = len(category_list) - 1
+                last_category_list = category_list(last_index)
+                # [barcode, full_product_name, lotno, item_test]
 
 
 app = SortAncFileSystem()
