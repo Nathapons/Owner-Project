@@ -182,40 +182,40 @@ class CrossSection():
         # result_ws2 => Solder Mask Coverage
 
         # # Fill Cross Section For Stack up
-        stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
-        stack_row, stack_col = self.get_stack_up_row_col(report_ws)
-        self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+        # stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+        # stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+        # self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
 
-        # Fill Solder mask thickness and Min PTH
-        thickness_list = self.get_solder_mask_thickness(result_ws2)
-        min_pths = self.get_min_pth_copper_thickness(result_ws1)
-        conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
-        self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+        # # Fill Solder mask thickness and Min PTH
+        # thickness_list = self.get_solder_mask_thickness(result_ws2)
+        # min_pths = self.get_min_pth_copper_thickness(result_ws1)
+        # conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+        # self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
 
-        # Fill OQC
-        self.cross_section_for_via_and_pth(report_ws, result_ws1)
-        status = 'COMPLETE'
+        # # Fill OQC
+        # self.cross_section_for_via_and_pth(report_ws, result_ws1)
+        # status = 'COMPLETE'
 
-        # try:
-        #     # Fill Cross Section For Stack up
-        #     stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
-        #     stack_row, stack_col = self.get_stack_up_row_col(report_ws)
-        #     self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
+        try:
+            # Fill Cross Section For Stack up
+            stacks1, stacks2, stacks3, stacks4 = self.get_stack_up_data(result_ws1)
+            stack_row, stack_col = self.get_stack_up_row_col(report_ws)
+            self.fill_stackup(report_ws, stacks1, stacks2, stacks3, stacks4, stack_row, stack_col)
 
-        #     # Fill Solder mask thickness and Min PTH
-        #     thickness_list = self.get_solder_mask_thickness(result_ws2)
-        #     min_pths = self.get_min_pth_copper_thickness(result_ws1)
-        #     conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
-        #     self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
+            # Fill Solder mask thickness and Min PTH
+            thickness_list = self.get_solder_mask_thickness(result_ws2)
+            min_pths = self.get_min_pth_copper_thickness(result_ws1)
+            conduct_row, pth_row, fill_col = self.get_min_pth_row(report_ws)
+            self.fill_min_pth_data(report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col)
 
-        #     # Fill OQC
-        #     self.cross_section_for_via_and_pth(report_ws, result_ws1)
+            # Fill OQC
+            self.cross_section_for_via_and_pth(report_ws, result_ws1)
 
-        #     status = 'COMPLETE'
-        # except FileNotFoundError:
-        #     status = 'Picture Error!!'
-        # except Exception:
-        #     status = 'Program Error!!'
+            status = 'COMPLETE'
+        except FileNotFoundError:
+            status = 'Picture Error!!'
+        except Exception:
+            status = 'Program Error!!'
 
         return status
 
@@ -364,7 +364,7 @@ class CrossSection():
     def fill_min_pth_data(self, report_ws, thickness_list, min_pths, conduct_row, pth_row, fill_col):
         index = 0
         detail = str(report_ws.cell(conduct_row-1, fill_col).value)
-
+        
         while index < 3:
             thickness = thickness_list[index]
 
@@ -481,7 +481,7 @@ class CrossSection():
                         break
 
                 if key != 'Picture':
-                    if cross_dict[key] != 'N/A':
+                    if cross_dict[key] != 'N/A' and cross_dict[key] != '':
                         report_ws.cell(row=fill_row+1, column=fill_col).value = float(cross_dict[key])
                     else:
                         report_ws.cell(row=fill_row+1, column=fill_col).value = cross_dict[key]
@@ -627,7 +627,7 @@ class CrossSection():
         status = 'COMPLETE'
         # Import Hot Bar& B2B Picture
         COLUMN_INSERT = 1
-        if solder_pic_path != "":
+        if solder_pic_path != '' and len(solder_pic_path) != 0:
             solder_pics = sorted(Path(solder_pic_path).iterdir(), key=os.path.getmtime)
             for pic in solder_pics:
                 if not str(pic).upper().endswith('JPG'):
@@ -668,14 +668,14 @@ class CrossSection():
 
         # Import Connector Picture
         COLUMN_INSERT = 1
-        if b2b_pic_path != "":
+        if b2b_pic_path != '' and len(b2b_pic_path) != 0:
             b2b_pics = sorted(Path(b2b_pic_path).iterdir(), key=os.path.getmtime)
             for pic in b2b_pics:
                 if not str(pic).upper().endswith('JPG'):
                     b2b_pics.remove(pic)
 
             for i in range(1, len(b2b_pics), 2):
-                if str(b2b_pics[i]).upper().endswith('JPG') and str(solder_pics[i-1]).upper().endswith('JPG'):
+                if str(b2b_pics[i]).upper().endswith('JPG') and str(b2b_pics[i-1]).upper().endswith('JPG'):
                     # Get Picture
                     first_pic = b2b_pics[i-1]
                     second_pic = b2b_pics[i]

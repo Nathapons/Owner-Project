@@ -17,8 +17,7 @@ class SortAncFileSystem():
                 sheetnames = self.get_all_sheet(path=excel_file_location)
                 table_list = self.get_table_list(sheetnames=sheetnames, table_list=table_list, filename=excel_file_location)
 
-        self.get_filenames(table_list=table_list)
-        
+        self.get_filename(table_list)
 
     def get_all_sheet(self, path):
         with pd.ExcelFile(io=path) as xl:
@@ -36,112 +35,46 @@ class SortAncFileSystem():
 
             for row in range(max_row):
                 barcode = str(df['S/N'][row])
-                product_name = str(df['P/D name'][row])
+                product_name = str(df['P/D name'][row]).strip()
+                
+                if "-" not in product_name and "Z" not in product_name:
+                    first_path = product_name[0:3]
+                    second_path = product_name[3:]
+                    full_product_name = str(first_path) + "-" + str(second_path)
+                elif "-" not in product_name:
+                    first_path = product_name[0:4]
+                    second_path = product_name[4:]
+                    full_product_name = str(first_path) + "-" + str(second_path)
+                else:
+                    full_product_name = product_name
+                
                 lotno = str(df['lot no. for OST'][row])
                 item_test = str(df['Item test'][row])
 
-                row = [barcode, product_name, lotno, item_test]
+                row = [barcode, full_product_name, lotno, item_test]
                 if 'nan' not in row:
                     table_list.append(row)
 
         return table_list
 
-    def get_filenames(self, table_list):
-        file_obj = self.create_text_file()
+    def get_filename(self, table_list):
+        yamaha_path = "\\\\10.17.73.53\\ORT_Result\\37.OST\\R2-40-131"
+        yamaha_files = listdir(yamaha_path)
 
-        file_obj.write('Start move file machine: R2-40-131 \n')
-        nidech_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\R2-40-131'
-        for csv_file in listdir(nidech_path):
-            barcode = csv_file.split('_')[0]
-            if barcode.startswith('A'):
-                csv_file_location = path.join(nidech_path, csv_file)
-                self.exist_in_table_list(barcode=barcode, table_list=table_list, csv_file=csv_file_location, file_obj=file_obj)
-        
-        file_obj.write('End move file machine: R2-40-131 \n\n')
-
-        file_obj.write('Start move file machine: W-40-112 \n')
-        nidech_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\W-40-112'
-        for csv_file in listdir(nidech_path):
-            barcode = csv_file.split('_')[0]
-            if barcode.startswith('A'):
-                csv_file_location = path.join(nidech_path, csv_file)
-                self.exist_in_table_list(barcode=barcode, table_list=table_list, csv_file=csv_file_location, file_obj=file_obj)
-        file_obj.write('End move file machine: W-40-112 \n\n')
-
-    def create_text_file(self):
-        now = datetime.now()
-        now_filename = now.strftime("%Y_%m_%d_%H_%M") + ".txt"
-        log_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\ERROR REPORT'
-        now_filename = path.join(log_path, now_filename)
-        file_obj = open(now_filename, 'a')
-        
-        return file_obj
-
-    def get_elt_barcode(self, excel_file):
-        excel_file_list = excel_file.split('-')
-
-        for barcode in excel_file_list:
-            if barcode.startswith('THA'):
-                return barcode
-
-    def exist_in_table_list(self, barcode, table_list, csv_file, file_obj):
-        items = []
-
-        for row in table_list:
-            if (barcode in row) and (row not in items):
-                items.append(row)
-
-        if len(items) >= 2:
-            print(items)
-        # if len(items) >= 2:
-        #     link = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\ITEM TEST ERROR'
-        #     self.copy_to_error(csv_file=csv_file, link=link, file_obj=file_obj)
-        # elif len(items) == 1:
-        #     barcode_details = items[0]
-        #     self.copy_to_folder(barcode_details=barcode_details, csv_file=csv_file)
-
-    def copy_to_error(self, link, csv_file, file_obj):
-        csv_file_name = path.basename(csv_file)
-        error_file_list = listdir(link)
-        destination = path.join(link, csv_file_name)
-
-        if csv_file not in error_file_list:
-            file_obj.write(f'   Move to ITEM TEST ERROR: {csv_file_name}\n')
-            copy2(src=csv_file,dst=destination)
-
-    def copy_to_folder(self, barcode_details, csv_file):
-        master_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว'
-        product_name = barcode_details[1]
-        if '-' not in product_name:
-            if 'Z' in product_name.upper():
-                product = product_name[0:4] + '-' + product_name[4:]
-            else:
-                product = product_name[0:3] + '-' + product_name[3:]
-        else:
-            product = product_name
-        lotno = barcode_details[2]
-        item_test = barcode_details[3]
-
-        # create folder
-        product_path = self.create_folder(link=master_path, folder_name=product)
-        item_path = self.create_folder(link=product_path, folder_name=item_test)
-        lotno_path = self.create_folder(link=item_path, folder_name=lotno)
-
-        csv_file_list = listdir(lotno_path)
-        if csv_file not in csv_file_list:
-            csv_filename = path.basename(csv_file)
-            destination = path.join(lotno_path, csv_filename)
-            copy2(src=csv_file, dst=destination)
+        for file in yamaha_files:
+            if file.startswith('A') and file.upper().endswith('CSV'):
+                barcode_no = file.split('_')[0]
+                self.check_item_sort(table_list, barcode_no, file)
 
 
-    def create_folder(self, link, folder_name):
-        folder_list = listdir(link)
-        folder_path = path.join(link, folder_name)
+    def check_item_sort(self, table_list, barcode_no, file):
+        category_list = [row for row in table_list if barcode_no in row]
 
-        if folder_name not in folder_list:
-            mkdir(folder_path)
-
-        return folder_path
+        if len(category_list) > 0:
+            measure_list = list({row[3] for row in category_list})
+            print(f'{barcode_no} // {measure_list}')
+            if len(measure_list) == 1:
+                pass
 
 
 app = SortAncFileSystem()
