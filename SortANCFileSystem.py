@@ -1,21 +1,22 @@
 import pandas as pd
-from pyxlsb import open_workbook
 from openpyxl import load_workbook
 from os import path, listdir, mkdir
 from shutil import copy2
 from datetime import datetime
+from pyxlsb import open_workbook
 
 class SortAncFileSystem():
-    def __init__(self):
-        self.master_file_path = "\\\\10.17.78.169\\Main_DATA\\00.Record status ORT"
-        self.barcode_error_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\BARCODE ERROR'
+    # def __init__(self):
+    #     self.master_file_path = "\\\\10.17.78.169\\Main_DATA\\00.Record status ORT"
+    #     self.barcode_error_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว\\BARCODE ERROR'
         
     def program_overview(self):
+        master_file_path = "\\\\10.17.78.169\\Main_DATA\\00.Record status ORT"
         table_list = []
 
-        for excel_file in listdir(self.master_file_path):
+        for excel_file in listdir(master_file_path):
             if (excel_file.upper().startswith('ORT')):
-                excel_file_location = path.join(self.master_file_path, excel_file)
+                excel_file_location = path.join(master_file_path, excel_file)
                 sheetnames = self.get_all_sheet(path=excel_file_location)
                 table_list = self.get_table_list(sheetnames=sheetnames, table_list=table_list, filename=excel_file_location)
 
@@ -27,11 +28,13 @@ class SortAncFileSystem():
         if path.endswith('xlsb'):
             wb = open_workbook(path)
             sheetnames = [name for name in wb.sheets if name not in ['ห้ามลบ', 'List Item', 'Operator']]
+            wb.close()
         else:
             wb = load_workbook(filename=path, read_only=True)
             for name in wb.sheetnames:
                 if name not in ['ห้ามลบ', 'List Item', 'Operator']:
                     sheetnames.append(name)
+            wb.close()
 
         return sheetnames
 
@@ -73,19 +76,23 @@ class SortAncFileSystem():
         return table_list
 
     def get_filename(self, table_list):
+        print('Start Move file: R2-40-131') 
         yamaha_path = "\\\\10.17.73.53\\ORT_Result\\37.OST\\R2-40-131"
         yamaha_files = listdir(yamaha_path)
         for file in yamaha_files:
             if file.startswith('A') and file.upper().endswith('CSV'):
                 barcode_no = file.split('_')[0]
                 self.check_item_sort(table_list, barcode_no, file, yamaha_path)
-                
+        print('----------End----------') 
+
+        print('Start Move file: W-40-112') 
         nidech_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\W-40-112'
         nidech_files = listdir(nidech_path)
         for file in nidech_files:
             if file.startswith('A') and file.upper().endswith('CSV'):
                 barcode_no = file.split('_')[0]
-                self.check_item_sort(table_list, barcode_no, file, nidech_files)
+                self.check_item_sort(table_list, barcode_no, file, nidech_path)
+        print('----------End----------') 
 
     def check_item_sort(self, table_list, barcode_no, file, machine_path):
         category_list = [row for row in table_list if barcode_no in row]
@@ -119,12 +126,13 @@ class SortAncFileSystem():
         if is_lotno_path == False:
             mkdir(lotno_path)
 
-        filename = "test_" + path.basename(source)
+        filename = path.basename(source)
         destination = path.join(lotno_path, filename)
         is_file_exist = path.isfile(destination)
         
         if is_file_exist == False:
             copy2(source, destination)
+            print(f'copy complete=>{destination}')
 
 
 app = SortAncFileSystem()
