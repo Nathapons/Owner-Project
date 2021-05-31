@@ -75,12 +75,17 @@ class SortAncFileSystem():
     def get_filename(self, table_list):
         yamaha_path = "\\\\10.17.73.53\\ORT_Result\\37.OST\\R2-40-131"
         yamaha_files = listdir(yamaha_path)
-
         for file in yamaha_files:
             if file.startswith('A') and file.upper().endswith('CSV'):
                 barcode_no = file.split('_')[0]
                 self.check_item_sort(table_list, barcode_no, file, yamaha_path)
                 
+        nidech_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\W-40-112'
+        nidech_files = listdir(nidech_path)
+        for file in nidech_files:
+            if file.startswith('A') and file.upper().endswith('CSV'):
+                barcode_no = file.split('_')[0]
+                self.check_item_sort(table_list, barcode_no, file, nidech_files)
 
     def check_item_sort(self, table_list, barcode_no, file, machine_path):
         category_list = [row for row in table_list if barcode_no in row]
@@ -96,9 +101,9 @@ class SortAncFileSystem():
                 item_test = last_category_list[3]
                 source = path.join(machine_path, file)
 
-                self.create_folder(barcode, product, lotno, item_test, source)
+                self.create_folder_and_copy_file(barcode, product, lotno, item_test, source)
 
-    def create_folder(self, barcode, product, lotno, item_test, source):
+    def create_folder_and_copy_file(self, barcode, product, lotno, item_test, source):
         sorting_file_path = '\\\\10.17.73.53\\ORT_Result\\37.OST\\แยก data แล้ว'
         product_path = path.join(sorting_file_path, product)
         item_test_path = path.join(product_path, item_test)
@@ -120,7 +125,6 @@ class SortAncFileSystem():
         
         if is_file_exist == False:
             copy2(source, destination)
-            print(f'paste at {destination}')
 
 
 app = SortAncFileSystem()
