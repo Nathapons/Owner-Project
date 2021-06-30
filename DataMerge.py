@@ -26,7 +26,7 @@ class DataMerge():
             self.save_csv(location=result_location, csv_name="SBY_RESULT.CSV", data_table=data_table)
 
     def create_result_folder(self, previous_location):
-        result_location = os.path.join(previous_location, "RESULT")
+        result_location = os.path.join(previous_location, "PYTHON")
         if os.path.isdir(result_location) == False:
             os.mkdir(result_location)
 

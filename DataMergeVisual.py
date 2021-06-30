@@ -8,17 +8,20 @@ df = pd.read_csv(csv_file)
 
 datetime_lists = []
 avg1_lists = []
+tooltips = []
 max_row = list(df.shape)[0]
 
 count = 0
 for row in range(max_row):
-    avg1 = float(df['CPU Used'][row])
+    avg1 = float(df['CPU System'][row])
     date = str(df['Date'][row])
     time = str(df['Time'][row])
     datetime = date + " " + time
+    tooltip = "Date: " + datetime + " Values: " + str(avg1)
 
     avg1_lists.append(avg1)
     datetime_lists.append(count)
+    tooltips.append(tooltip)
 
     count += 1
     # if count >= 10:
@@ -38,4 +41,5 @@ title_setting = {'size':20,'color':'blue'}
 plt.ylabel('Load Average 1m')
 plt.xlabel('Datetime', rotation=0)
 plt.title('Load Averge 1m', title_setting)
+
 plt.show()
