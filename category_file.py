@@ -51,7 +51,7 @@ class SortAncFileSystem():
             df = pd.read_excel(filename, sheet_name=sheetname, header=1, dtype=str, engine=engine)
             max_row = list(df.shape)[0]
 
-            for row in range(max_row):
+            for row in range(max_row): 
                 barcode = str(df['S/N'][row])
                 product_name = str(df['P/D name'][row]).strip()
                 
