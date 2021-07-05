@@ -6,17 +6,26 @@ import pandas as pd
 import numpy as np
 import statistics
 
+
 class DataMergeVisual():
     def __init__(self):
         root = Tk()
         WIDTH = 500
         HEIGHT = 300
-        screen_width = root.winfo_screenwidth()
-        screen_height = root.winfo_screenheight()
-
-        # Root Properties
-        label = pd.read
+        
         root.mainloop()
+
+    def program_overview(self):
+        pass
+
+    def open_csv(self):
+        pass
+
+    def get_dataframe(self, csv):
+        pass
+
+    def close_csv(self, csv):
+        pass
 
 
 if __name__ == '__main__':
