@@ -6,7 +6,7 @@ import os
 class DataMerge():
     def __init__(self):
         # server = "D:\\Nathapon_KeepFolder\\0.My work\\01.IoT\\08.P'Muse\\SERVER"
-        server = "D:\\DB_STATUS_CHECK"
+        server = "\\\\10.17.71.195\db_status_check"
         previous_date = datetime.datetime.today() - datetime.timedelta(days=1)
         previous_format = previous_date.strftime("%Y%m%d")
         previous_normal = previous_date.strftime("%d/%m/%Y")
